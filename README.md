@@ -11,7 +11,7 @@
 
 A lightweight, open-source macOS menu bar application (built with Swift & SwiftUI) that displays your **Google Antigravity** model usage limits, reset times, plan credits, and local token telemetry in real time.
 
-> 💡 **Inspiration**: This project is directly inspired by [**Kritternai/ClaudeUsageBar**](https://github.com/Kritternai/ClaudeUsageBar) (and [Artzainnn/ClaudeUsageBar](https://github.com/Artzainnn/ClaudeUsageBar)), adapted and re-architected natively for Google Antigravity's local language server and telemetry architecture.
+> 💡 **Inspiration**: This project is directly inspired by [**Artzainnn/ClaudeUsageBar**](https://github.com/Artzainnn/ClaudeUsageBar), adapted and re-architected natively for Google Antigravity's local language server and telemetry architecture.
 
 ---
 
@@ -113,7 +113,7 @@ Contributions, issues, and feature requests are welcome!
 
 ## 🙏 Acknowledgments & Inspiration
 
-- Inspired by [**Kritternai/ClaudeUsageBar**](https://github.com/Kritternai/ClaudeUsageBar) & [**Artzainnn/ClaudeUsageBar**](https://github.com/Artzainnn/ClaudeUsageBar) — Track your Claude.ai usage right from your Mac menu bar.
+- Inspired by [**Artzainnn/ClaudeUsageBar**](https://github.com/Artzainnn/ClaudeUsageBar) — Track your Claude.ai usage right from your Mac menu bar.
 
 ## 📄 License
 
