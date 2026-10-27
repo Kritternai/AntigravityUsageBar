@@ -1,41 +1,40 @@
 <!DOCTYPE html>
-<html lang="en" style="background-color: #090b10;">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090b10">
+  <meta name="theme-color" content="#07080c">
   <meta name="color-scheme" content="dark">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="canonical" href="https://kritternai.github.io/AntigravityUsageBar/">
-  <title>AntigravityUsageBar – Free Google Antigravity Quota & Token Tracker for macOS</title>
-  <meta name="description" content="Free, open-source macOS menu bar app that tracks your Google Antigravity model quotas (Gemini 4 Argon, Claude Sonnet 5.5, Opus 5.5) and local token telemetry in real time. Zero config required.">
-  <!-- Open Graph -->
+  <title>AGY // TELEMETRY — AntigravityUsageBar for macOS</title>
+  <meta name="description" content="Zero-config macOS menu bar HUD for Google Antigravity. Real-time model quota telemetry, local language_server RPC inspection, and transcript token analytics.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://kritternai.github.io/AntigravityUsageBar/">
-  <meta property="og:title" content="AntigravityUsageBar – Google Antigravity Quota & Token Tracker for macOS">
-  <meta property="og:description" content="Free, open-source macOS menu bar app that tracks your Google Antigravity model quotas, reset countdowns, and local token telemetry in real time.">
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="AntigravityUsageBar – Google Antigravity Quota & Token Tracker for macOS">
-  <meta name="twitter:description" content="Free, open-source macOS menu bar app that tracks your Google Antigravity model quotas, reset countdowns, and local token telemetry in real time.">
+  <meta property="og:title" content="AGY // TELEMETRY — AntigravityUsageBar for macOS">
+  <meta property="og:description" content="Zero-config macOS menu bar HUD for Google Antigravity. Real-time model quota telemetry, local language_server RPC inspection, and transcript token analytics.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Share+Tech+Mono&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --agy-blue: #3b82f6;
-      --agy-cyan: #22d3ee;
-      --agy-emerald: #10b981;
-      --agy-accent: #38bdf8;
-      --agy-accent-dark: #2563eb;
-      --bg-dark: #090b10;
-      --bg-card: #121620;
-      --bg-card-hover: #181d2a;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --border: #1e293b;
+      --bg-void: #07080c;
+      --bg-panel: #0d1017;
+      --bg-panel-alt: #111622;
+      --bg-hud: #090c12;
+      --border-grid: #1c2436;
+      --border-bright: #2e3d5c;
+      --text-main: #f1f5f9;
+      --text-dim: #94a3b8;
+      --text-mute: #475569;
+      --cyan: #00f0ff;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --crimson: #f43f5e;
+      --cobalt: #3b82f6;
+      --mono: 'Fira Code', monospace;
+      --hud-font: 'Share Tech Mono', monospace;
+      --display: 'Space Grotesk', sans-serif;
     }
 
     * {
@@ -46,1189 +45,1175 @@
 
     html {
       scroll-behavior: smooth;
-      background-color: var(--bg-dark) !important;
+      background-color: var(--bg-void);
+      color: var(--text-main);
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-dark) !important;
-      color: var(--text-primary);
-      line-height: 1.6;
+      font-family: var(--display);
+      background-color: var(--bg-void);
+      background-image:
+        linear-gradient(to right, rgba(28, 36, 54, 0.35) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(28, 36, 54, 0.35) 1px, transparent 1px);
+      background-size: 48px 48px;
+      color: var(--text-main);
+      line-height: 1.5;
       overflow-x: hidden;
-      min-height: 100vh;
     }
 
-    .ambient {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .ambient::before {
-      content: '';
-      position: absolute;
-      top: -20%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 900px;
-      height: 600px;
-      background: radial-gradient(ellipse, rgba(56, 189, 248, 0.14) 0%, rgba(16, 185, 129, 0.06) 45%, transparent 70%);
-      filter: blur(80px);
-    }
-
-    .ambient::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 50%;
-      background: radial-gradient(ellipse at bottom, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
-    }
-
-    .announce-bar {
-      position: fixed;
+    /* Top System Telemetry Strip */
+    .telemetry-strip {
+      position: sticky;
       top: 0;
-      left: 0;
-      right: 0;
-      z-index: 101;
-      height: 38px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0 16px;
-      background: linear-gradient(90deg, #1d4ed8, #0891b2);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: filter 0.2s ease;
-    }
-
-    .announce-bar:hover { filter: brightness(1.1); }
-
-    .announce-bar-tag {
-      background: rgba(255, 255, 255, 0.22);
-      color: #ffffff;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      padding: 2px 8px;
-      border-radius: 100px;
-    }
-
-    nav {
-      position: fixed;
-      top: 38px;
-      left: 0;
-      right: 0;
       z-index: 100;
-      padding: 16px 24px;
-      background: rgba(9, 11, 16, 0.82);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
+      background: rgba(7, 8, 12, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-grid);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
     }
 
-    .nav-content {
-      max-width: 1200px;
+    .strip-inner {
+      max-width: 1360px;
       margin: 0 auto;
+      padding: 10px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
-    .logo {
+    .strip-left, .strip-right {
       display: flex;
       align-items: center;
-      gap: 12px;
-      text-decoration: none;
-      color: var(--text-primary);
+      gap: 18px;
+      flex-wrap: wrap;
     }
 
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .logo-icon svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .logo-text {
-      font-weight: 600;
-      font-size: 18px;
-      letter-spacing: -0.02em;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-    }
-
-    .nav-links a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover {
-      color: var(--text-primary);
-    }
-
-    .nav-cta {
-      background: linear-gradient(135deg, var(--agy-blue) 0%, #0284c7 100%);
-      color: white !important;
-      padding: 9px 18px;
-      border-radius: 8px;
-      transition: transform 0.2s, filter 0.2s !important;
-    }
-
-    .nav-cta:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-    }
-
-    .hero {
-      position: relative;
-      z-index: 1;
-      min-height: 92vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 130px 24px 70px;
-      text-align: center;
-    }
-
-    .hero-badge {
+    .sys-tag {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 100px;
-      font-size: 13px;
+      gap: 6px;
+      color: var(--cyan);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
+    }
+
+    .strip-kv {
+      color: var(--text-mute);
+    }
+    .strip-kv strong {
+      color: var(--text-main);
       font-weight: 500;
-      color: var(--agy-cyan);
-      margin-bottom: 24px;
-      animation: fadeInUp 0.6s ease-out;
     }
 
-    .hero-badge svg {
-      width: 16px;
-      height: 16px;
+    .strip-nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-left: 20px;
+      transition: color 0.15s;
+    }
+    .strip-nav a:hover {
+      color: var(--cyan);
     }
 
-    .hero-icon {
-      width: 132px;
-      height: 132px;
-      margin-bottom: 36px;
-      animation: fadeInUp 0.6s ease-out 0.1s both;
-      filter: drop-shadow(0 20px 40px rgba(56, 189, 248, 0.28));
+    /* Main Wrapper */
+    .shell {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 32px 24px 96px;
     }
 
-    .hero-icon-inner {
-      width: 100%;
-      height: 100%;
-      border-radius: 30px;
-      background: linear-gradient(135deg, #131c31 0%, #1e2b4d 100%);
-      border: 1px solid rgba(56, 189, 248, 0.35);
+    /* Split Asymmetric Hero */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      border: 1px solid var(--border-grid);
+      background: rgba(13, 16, 23, 0.85);
+      position: relative;
+    }
+
+    .hero-grid::before {
+      content: 'SYS.HUD // ANTIGRAVITY_USAGE_BAR_V1.0.0';
+      position: absolute;
+      top: -10px;
+      left: 16px;
+      background: var(--bg-void);
+      padding: 0 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+    }
+
+    .hero-left {
+      padding: 56px 48px;
+      border-right: 1px solid var(--border-grid);
       display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
-    .hero-icon-inner svg {
-      width: 72px;
-      height: 72px;
-      position: relative;
-      z-index: 1;
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--emerald);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+    }
+
+    .kicker span {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 2px 8px;
     }
 
     h1 {
-      font-size: clamp(38px, 7vw, 68px);
+      font-size: clamp(36px, 5vw, 62px);
       font-weight: 700;
+      line-height: 1.04;
       letter-spacing: -0.03em;
-      line-height: 1.1;
-      margin-bottom: 22px;
-      animation: fadeInUp 0.6s ease-out 0.2s both;
+      text-transform: uppercase;
+      margin-bottom: 24px;
     }
 
-    h1 span {
-      background: linear-gradient(135deg, #34d399 0%, #38bdf8 55%, #60a5fa 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    h1 .accent {
+      color: var(--cyan);
+      font-family: var(--hud-font);
+      font-weight: 400;
+      display: block;
     }
 
-    .hero-subtitle {
-      font-size: 19px;
-      color: var(--text-secondary);
-      max-width: 620px;
-      margin: 0 auto 42px;
-      animation: fadeInUp 0.6s ease-out 0.3s both;
-    }
-
-    .hero-cta {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      animation: fadeInUp 0.6s ease-out 0.4s both;
-    }
-
-    .hero-buttons {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .download-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 18px 28px;
-      min-width: 260px;
-      background: linear-gradient(135deg, var(--agy-blue) 0%, #0284c7 100%);
-      color: white;
-      text-decoration: none;
+    .hero-lead {
       font-size: 17px;
-      font-weight: 600;
-      border-radius: 14px;
-      transition: all 0.3s;
-      box-shadow: 0 4px 24px rgba(59, 130, 246, 0.4);
+      color: var(--text-dim);
+      max-width: 560px;
+      margin-bottom: 36px;
+      line-height: 1.65;
     }
 
-    .download-btn:hover {
-      filter: brightness(1.08);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(56, 189, 248, 0.5);
-    }
-
-    .download-btn svg {
-      width: 22px;
-      height: 22px;
-    }
-
-    .github-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 18px 28px;
-      min-width: 260px;
-      background: var(--bg-card);
-      color: var(--text-primary);
-      text-decoration: none;
-      font-size: 17px;
-      font-weight: 600;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      transition: all 0.3s;
-    }
-
-    .github-btn:hover {
-      background: var(--bg-card-hover);
-      border-color: var(--text-muted);
-      transform: translateY(-2px);
-    }
-
-    .github-btn svg {
-      width: 22px;
-      height: 22px;
-      fill: currentColor;
-    }
-
-    .github-stars {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
+    .hero-lead code {
+      font-family: var(--mono);
       font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-left: 2px;
+      color: var(--cyan);
+      background: rgba(0, 240, 255, 0.08);
+      padding: 2px 6px;
     }
 
-    .github-stars svg {
-      width: 14px;
-      height: 14px;
-      fill: #facc15;
-    }
-
-    .brew-line {
+    .cta-row {
       display: flex;
-      flex-direction: column;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 14px;
+      gap: 12px;
+      background: var(--cyan);
+      color: #030712;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 16px 24px;
+      text-decoration: none;
+      border: 1px solid var(--cyan);
+      transition: all 0.15s;
+      cursor: pointer;
     }
 
-    .brew-line-label {
-      font-size: 12px;
-      color: var(--text-muted);
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--cyan);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.25);
     }
 
-    .brew-cmd {
+    .btn-ghost {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      max-width: 100%;
-      padding: 9px 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
-      font-size: 12.5px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: border-color 0.2s ease, color 0.2s ease;
-    }
-
-    .brew-cmd:hover { border-color: rgba(56, 189, 248, 0.5); color: var(--text-primary); }
-    .brew-cmd.copied { border-color: rgba(16, 185, 129, 0.65); }
-
-    .download-meta {
-      display: flex;
-      align-items: center;
-      gap: 18px;
+      background: var(--bg-panel-alt);
+      color: var(--text-main);
+      font-family: var(--mono);
       font-size: 13px;
-      color: var(--text-muted);
-      margin-top: 6px;
-      flex-wrap: wrap;
-      justify-content: center;
+      font-weight: 500;
+      padding: 16px 22px;
+      text-decoration: none;
+      border: 1px solid var(--border-bright);
+      transition: all 0.15s;
     }
 
-    .download-meta span {
+    .btn-ghost:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .cli-box {
+      background: var(--bg-hud);
+      border: 1px solid var(--border-grid);
+      padding: 14px 16px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
     }
 
-    /* Interactive Demo Section */
-    .screenshot-section {
-      position: relative;
-      z-index: 1;
-      padding: 0 24px 110px;
+    .cli-box:hover {
+      border-color: var(--cyan);
     }
 
-    .screenshot-container {
-      max-width: 900px;
-      margin: 0 auto;
-      text-align: center;
+    .cli-box code {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
-    .screenshot {
-      width: 100%;
-      background: var(--bg-card);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
+    .cli-box code .prompt {
+      color: var(--emerald);
+      margin-right: 8px;
     }
 
-    .screenshot-header {
+    .copy-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 3px 8px;
+      flex-shrink: 0;
+    }
+
+    /* Hero Right: Interactive Live Cockpit */
+    .hero-right {
+      padding: 32px;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(0, 240, 255, 0.08), transparent 55%),
+        var(--bg-hud);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .cockpit-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-grid);
+      padding-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .cockpit-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 14px 20px;
-      background: #0b0e15;
-      border-bottom: 1px solid var(--border);
     }
 
-    .screenshot-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-    .screenshot-dot.red { background: #ff5f57; }
-    .screenshot-dot.yellow { background: #ffbd2e; }
-    .screenshot-dot.green { background: #28c840; }
-
-    .screenshot-content {
-      padding: 40px 24px;
+    .mode-switch {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.07), transparent 65%);
+      gap: 4px;
+      background: var(--bg-panel);
+      padding: 3px;
+      border: 1px solid var(--border-grid);
     }
 
-    .menu-bar-demo {
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 5px 9px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .mode-btn.active {
+      background: var(--cobalt);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Simulated macOS Menu Bar + Popover */
+    .macos-stage {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 24px;
-      width: 100%;
-      max-width: 390px;
+      gap: 14px;
+      padding: 12px 0;
     }
 
-    .menu-bar {
+    .macos-menubar {
+      width: 100%;
+      background: #141923;
+      border: 1px solid var(--border-bright);
+      padding: 7px 16px;
       display: flex;
       align-items: center;
-      gap: 18px;
-      padding: 8px 20px;
-      background: #1e2433;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 12px;
     }
 
-    .menu-item {
-      font-size: 13px;
-      color: var(--text-secondary);
-      font-family: 'JetBrains Mono', monospace;
+    .menubar-left {
+      display: flex;
+      gap: 16px;
+      color: var(--text-mute);
     }
 
-    .usage-popup {
-      background: linear-gradient(180deg, #161b26 0%, #10141d 100%);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px;
+    .menubar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .agy-menubar-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px 9px;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      font-weight: 600;
+      color: var(--emerald);
+      cursor: pointer;
+    }
+
+    .agy-popover {
       width: 100%;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
-      text-align: left;
+      max-width: 400px;
+      background: #11151f;
+      border: 1px solid var(--border-bright);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+      padding: 18px;
     }
 
-    .popup-header {
+    .pop-head {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-grid);
     }
 
-    .popup-title-row {
+    .pop-title {
+      font-size: 15px;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .usage-popup-title {
-      font-weight: 600;
-      font-size: 15px;
-      color: var(--text-primary);
-    }
-
-    .tier-pill {
-      background: var(--agy-blue);
+    .pop-badge {
+      background: var(--cobalt);
       color: #fff;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 99px;
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 2px 7px;
+      text-transform: uppercase;
     }
 
-    .live-badge {
+    .pop-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-mute);
+      margin-top: 3px;
+    }
+
+    .pop-live {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--emerald);
       display: flex;
       align-items: center;
       gap: 5px;
-      font-size: 11px;
-      color: var(--text-secondary);
     }
 
-    .live-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 8px #22c55e;
+    .quota-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
     }
 
-    .usage-section {
-      margin-bottom: 14px;
-    }
-
-    .usage-section-header {
+    .quota-row-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      font-size: 12px;
       margin-bottom: 5px;
     }
 
-    .usage-section-label {
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text-primary);
+    .model-name {
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .active-tag {
+    .active-chip {
+      font-family: var(--mono);
       font-size: 9px;
-      font-weight: 700;
-      color: var(--agy-cyan);
-      border: 1px solid var(--agy-cyan);
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
       padding: 0 4px;
-      border-radius: 4px;
     }
 
-    .usage-section-reset {
-      font-size: 11px;
-      color: var(--text-muted);
+    .reset-clock {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
     }
 
-    .usage-progress {
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
+    .bar-track {
+      height: 7px;
+      background: #1e2638;
+      position: relative;
       overflow: hidden;
       margin-bottom: 4px;
     }
 
-    .usage-progress-bar {
+    .bar-fill {
       height: 100%;
-      border-radius: 3px;
-      transition: width 0.6s ease-out;
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s;
     }
-    .usage-progress-bar.green { background: #22c55e; }
-    .usage-progress-bar.orange { background: #f59e0b; }
-    .usage-progress-bar.red { background: #ef4444; }
 
-    .usage-section-meta {
+    .pace-tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #ffffff;
+      opacity: 0.85;
+      transition: left 0.35s ease;
+    }
+
+    .quota-row-bottom {
       display: flex;
       justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-mute);
     }
 
-    .telemetry-grid {
+    .tok-matrix {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin: 14px 0;
       padding-top: 12px;
-      border-top: 1px solid var(--border);
-    }
-
-    .telemetry-card {
-      background: rgba(255,255,255,0.04);
-      padding: 8px 10px;
-      border-radius: 8px;
-    }
-
-    .telemetry-card-title {
-      font-size: 10px;
-      color: var(--text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
-    .telemetry-card-val {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 2px 0;
-    }
-
-    .telemetry-card-sub {
-      font-size: 10px;
-      color: var(--text-secondary);
-    }
-
-    .usage-popup-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .usage-popup-refresh {
-      color: var(--agy-cyan);
-      cursor: pointer;
-      font-weight: 500;
-    }
-
-    .twin-card {
-      display: flex;
-      align-items: center;
-      text-align: left;
-      gap: 14px;
-      max-width: 520px;
-      margin: 36px auto 0;
-      padding: 16px 20px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      text-decoration: none;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .twin-card:hover { border-color: #da7756; transform: translateY(-2px); }
-    .twin-card-title { font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
-    .twin-card-desc { font-size: 12.5px; color: var(--text-secondary); }
-    .twin-card-arrow { margin-left: auto; color: var(--text-muted); font-size: 18px; }
-
-    /* Features */
-    .features {
-      position: relative;
-      z-index: 1;
-      padding: 80px 24px 100px;
-    }
-
-    .features-header {
-      text-align: center;
-      margin-bottom: 56px;
-    }
-
-    .features-header h2 {
-      font-size: 36px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      border-top: 1px solid var(--border-grid);
       margin-bottom: 12px;
     }
 
-    .features-header p {
-      color: var(--text-secondary);
-      font-size: 18px;
+    .tok-cell {
+      background: #0b0e16;
+      border: 1px solid var(--border-grid);
+      padding: 8px 10px;
     }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 24px;
-      max-width: 1040px;
-      margin: 0 auto;
+    .tok-cell-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-mute);
+      text-transform: uppercase;
     }
 
-    .feature-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 30px;
-      transition: all 0.3s;
-    }
-
-    .feature-card:hover {
-      background: var(--bg-card-hover);
-      border-color: rgba(56, 189, 248, 0.35);
-      transform: translateY(-4px);
-    }
-
-    .feature-icon {
-      width: 48px;
-      height: 48px;
-      background: rgba(56, 189, 248, 0.12);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 18px;
-    }
-
-    .feature-icon svg {
-      width: 24px;
-      height: 24px;
-      stroke: var(--agy-cyan);
-    }
-
-    .feature-card h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-
-    .feature-card p {
-      color: var(--text-secondary);
-      font-size: 14.5px;
-      line-height: 1.6;
-    }
-
-    /* FAQ */
-    .faq {
-      position: relative;
-      z-index: 1;
-      padding: 60px 24px 90px;
-    }
-
-    .faq-header {
-      text-align: center;
-      margin-bottom: 44px;
-    }
-
-    .faq-header h2 {
-      font-size: 32px;
+    .tok-cell-val {
+      font-family: var(--mono);
+      font-size: 13px;
       font-weight: 700;
-      margin-bottom: 10px;
+      color: var(--cyan);
+      margin: 2px 0;
     }
 
-    .faq-header p {
-      color: var(--text-secondary);
+    .tok-cell-break {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-dim);
     }
 
-    .faq-grid {
-      max-width: 800px;
-      margin: 0 auto;
+    .pop-foot {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-mute);
+      padding-top: 8px;
+      border-top: 1px solid var(--border-grid);
+    }
+
+    /* Section Header */
+    .sec-head {
+      margin: 80px 0 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-grid);
+      padding-bottom: 16px;
+      flex-wrap: wrap;
       gap: 16px;
     }
 
-    .faq-item {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
+    .sec-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
     }
 
-    .faq-question {
-      font-size: 16px;
-      font-weight: 600;
+    .sec-title {
+      font-size: clamp(24px, 3.5vw, 36px);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    /* Architecture Pipeline Diagram */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--border-grid);
+      background: var(--bg-panel);
+    }
+
+    .pipe-step {
+      padding: 32px;
+      border-right: 1px solid var(--border-grid);
+      position: relative;
+    }
+    .pipe-step:last-child {
+      border-right: none;
+    }
+
+    .pipe-num {
+      font-family: var(--hud-font);
+      font-size: 13px;
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      display: inline-block;
+      padding: 2px 8px;
+      margin-bottom: 16px;
+    }
+
+    .pipe-step h3 {
+      font-size: 19px;
       margin-bottom: 10px;
-      color: var(--text-primary);
+      text-transform: uppercase;
     }
 
-    .faq-answer {
+    .pipe-step p {
       font-size: 14px;
-      color: var(--text-secondary);
-      line-height: 1.7;
+      color: var(--text-dim);
+      margin-bottom: 18px;
     }
 
-    .faq-answer code {
-      background: rgba(255,255,255,0.08);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
+    .pipe-code {
+      background: var(--bg-void);
+      border: 1px solid var(--border-grid);
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--emerald);
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
-    .faq-answer a {
-      color: var(--agy-cyan);
+    /* Bento Technical Specs Grid */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .bento-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-grid);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s;
+    }
+
+    .bento-card:hover {
+      border-color: var(--cyan);
+    }
+
+    .span-7 { grid-column: span 7; }
+    .span-5 { grid-column: span 5; }
+    .span-4 { grid-column: span 4; }
+    .span-8 { grid-column: span 8; }
+
+    .bento-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .bento-card h3 {
+      font-size: 21px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .bento-card p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .model-matrix {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .model-chip {
+      background: var(--bg-void);
+      border: 1px solid var(--border-grid);
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .model-chip span:last-child {
+      color: var(--emerald);
+    }
+
+    /* Comparison Table: Zero-Cookie vs Browser Cookie */
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border-grid);
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--bg-panel);
+    }
+
+    .comp-table th, .comp-table td {
+      border: 1px solid var(--border-grid);
+      padding: 14px 18px;
+      text-align: left;
+    }
+
+    .comp-table th {
+      background: var(--bg-hud);
+      color: var(--cyan);
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    .comp-table td.good {
+      color: var(--emerald);
+    }
+
+    /* Origin / Lineage Banner */
+    .lineage-panel {
+      margin-top: 80px;
+      border: 1px solid var(--border-bright);
+      background: linear-gradient(90deg, rgba(13, 16, 23, 0.95), rgba(24, 29, 45, 0.95));
+      padding: 36px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .lineage-text h3 {
+      font-size: 20px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .lineage-text p {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .lineage-text a {
+      color: var(--cyan);
       text-decoration: none;
+      font-family: var(--mono);
     }
 
     footer {
-      position: relative;
-      z-index: 1;
-      padding: 40px 24px;
-      border-top: 1px solid var(--border);
-      text-align: center;
-    }
-
-    .footer-content {
-      max-width: 1200px;
-      margin: 0 auto;
+      margin-top: 80px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border-grid);
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
       align-items: center;
-      gap: 14px;
-    }
-
-    .footer-text {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 24px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-mute);
       flex-wrap: wrap;
-      justify-content: center;
+      gap: 16px;
     }
 
-    .footer-links a {
-      color: var(--text-secondary);
+    footer a {
+      color: var(--text-dim);
       text-decoration: none;
-      font-size: 14px;
+      margin-left: 20px;
+    }
+    footer a:hover {
+      color: var(--cyan);
     }
 
-    .footer-links a:hover {
-      color: var(--text-primary);
-    }
-
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 768px) {
-      .nav-links { display: none; }
-      .hero { padding: 100px 20px 60px; }
+    @media (max-width: 980px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .hero-left { border-right: none; border-bottom: 1px solid var(--border-grid); padding: 36px 24px; }
+      .pipeline-grid { grid-template-columns: 1fr; }
+      .pipe-step { border-right: none; border-bottom: 1px solid var(--border-grid); }
+      .span-7, .span-5, .span-4, .span-8 { grid-column: span 12; }
     }
   </style>
 </head>
 <body>
 
-  <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank" class="announce-bar">
-    <span class="announce-bar-tag">INSPIRATION</span>
-    ✨ Inspired by Kritternai/ClaudeUsageBar — Now built natively for Google Antigravity →
-  </a>
-  <div class="ambient"></div>
+  <!-- Top Telemetry Bar -->
+  <header class="telemetry-strip">
+    <div class="strip-inner">
+      <div class="strip-left">
+        <span class="sys-tag"><span class="pulse-dot"></span> AGY // TELEMETRY_HUD</span>
+        <span class="strip-kv">RPC: <strong>127.0.0.1:language_server</strong></span>
+        <span class="strip-kv">AUTH: <strong>AUTO_CSRF_DISCOVERY</strong></span>
+        <span class="strip-kv">ARCH: <strong>UNIVERSAL (ARM64 + X86_64)</strong></span>
+      </div>
+      <nav class="strip-nav">
+        <a href="#pipeline">[01. ARCHITECTURE]</a>
+        <a href="#specs">[02. TELEMETRY SPECS]</a>
+        <a href="#lineage">[03. LINEAGE]</a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">[GITHUB ↗]</a>
+      </nav>
+    </div>
+  </header>
 
-  <nav>
-    <div class="nav-content">
-      <a href="#" class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 1L9.5 6L15 8L9.5 10L8 15L6.5 10L1 8L6.5 6L8 1Z" fill="#38bdf8"/>
-            <circle cx="12.5" cy="3.5" r="1.5" fill="#34d399"/>
-          </svg>
+  <main class="shell">
+    <!-- Split Asymmetric Hero + Interactive Simulator -->
+    <section class="hero-grid">
+      <div class="hero-left">
+        <div>
+          <div class="kicker">
+            <span>MIT OPEN SOURCE</span>
+            <span>MACOS 12.0+ NATIVE</span>
+          </div>
+          <h1>
+            ANTIGRAVITY
+            <span class="accent">QUOTA &amp; TOKEN HUD_</span>
+          </h1>
+          <p class="hero-lead">
+            Stop guessing when your Google Antigravity rate limits reset.
+            <strong>AntigravityUsageBar</strong> hooks directly into your local
+            <code>language_server</code> daemon and <code>~/.gemini/antigravity</code>
+            transcript logs—rendering live model quotas, pace ticks, and token burn right in your macOS menu bar.
+          </p>
+
+          <div class="cta-row">
+            <a href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              DOWNLOAD .DMG (v1.0.0)
+            </a>
+            <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" class="btn-ghost">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              SOURCE CODE
+              <span id="ghStars" style="color: var(--cyan);">[★]</span>
+            </a>
+          </div>
         </div>
-        <span class="logo-text">AntigravityUsageBar</span>
-      </a>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#faq">FAQ</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">GitHub</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg" class="nav-cta">Download DMG</a>
-      </div>
-    </div>
-  </nav>
 
-  <section class="hero">
-    <div class="hero-badge">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-      </svg>
-      Free &amp; Open Source · Zero-Config
-    </div>
-
-    <div class="hero-icon">
-      <div class="hero-icon-inner">
-        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="agyGrad" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#34d399"/>
-              <stop offset="100%" stop-color="#38bdf8"/>
-            </linearGradient>
-          </defs>
-          <path d="M8 1L9.5 6L15 8L9.5 10L8 15L6.5 10L1 8L6.5 6L8 1Z" fill="url(#agyGrad)"/>
-          <circle cx="12.5" cy="3.5" r="1.5" fill="#60a5fa"/>
-        </svg>
-      </div>
-    </div>
-
-    <h1>Track Your <span>Antigravity</span> Quotas</h1>
-    <p class="hero-subtitle">A native macOS menu bar app that automatically discovers your local Google Antigravity server to track model rate limits, reset countdowns, and token telemetry in real time.</p>
-
-    <div class="hero-cta">
-      <div class="hero-buttons">
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg" class="download-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Download for macOS
-        </a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" class="github-btn">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-          </svg>
-          View on GitHub
-          <span class="github-stars">
-            <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            <span id="starNumber">Star</span>
-          </span>
-        </a>
-      </div>
-
-      <div class="brew-line">
-        <span class="brew-line-label" id="cloneLabel">or build from source in 10 seconds</span>
-        <code class="brew-cmd" id="cloneCmd" title="Click to copy">git clone https://github.com/Kritternai/AntigravityUsageBar.git &amp;&amp; cd AntigravityUsageBar/app &amp;&amp; ./build.sh</code>
-      </div>
-
-      <div class="download-meta">
-        <span>✓ Zero Cookie Setup</span>
-        <span>✓ macOS 12.0+ (Apple Silicon &amp; Intel)</span>
-        <span>✓ 100% Local &amp; Private</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="screenshot-section">
-    <div class="screenshot-container">
-      <div class="screenshot">
-        <div class="screenshot-header">
-          <span class="screenshot-dot red"></span>
-          <span class="screenshot-dot yellow"></span>
-          <span class="screenshot-dot green"></span>
-        </div>
-        <div class="screenshot-content">
-          <div class="menu-bar-demo">
-            <div class="menu-bar">
-              <span class="menu-item">File</span>
-              <span class="menu-item">Edit</span>
-              <span class="menu-item">View</span>
-              <span class="menu-icon">
-                <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
-                  <path d="M8 1L9.5 6L15 8L9.5 10L8 15L6.5 10L1 8L6.5 6L8 1Z" fill="#22c55e"/>
-                  <circle cx="12.5" cy="3.5" r="1.5" fill="#22c55e"/>
-                </svg>
-              </span>
-              <span class="menu-item" id="menuBarPercent" style="color: #22c55e; font-weight: 600;">4%</span>
-            </div>
-
-            <div class="usage-popup">
-              <div class="popup-header">
-                <div>
-                  <div class="popup-title-row">
-                    <span class="usage-popup-title">Antigravity Usage</span>
-                    <span class="tier-pill">Google AI Pro</span>
-                  </div>
-                </div>
-                <div class="live-badge">
-                  <span class="live-dot"></span>
-                  <span>Live</span>
-                </div>
-              </div>
-
-              <div class="usage-section">
-                <div class="usage-section-header">
-                  <span class="usage-section-label">Gemini 4 Argon <span class="active-tag">ACTIVE</span></span>
-                  <span class="usage-section-reset">Resets in 6d 16h</span>
-                </div>
-                <div class="usage-progress">
-                  <div class="usage-progress-bar green" id="bar1" style="width: 14%;"></div>
-                </div>
-                <div class="usage-section-meta">
-                  <span id="pct1">4% used</span>
-                  <span id="rem1">96% remaining</span>
-                </div>
-              </div>
-
-              <div class="usage-section">
-                <div class="usage-section-header">
-                  <span class="usage-section-label">Gemini 3.8 Flash</span>
-                  <span class="usage-section-reset">Resets in 4h 52m</span>
-                </div>
-                <div class="usage-progress">
-                  <div class="usage-progress-bar green" id="bar2" style="width: 11%;"></div>
-                </div>
-                <div class="usage-section-meta">
-                  <span id="pct2">11% used</span>
-                  <span id="rem2">89% remaining</span>
-                </div>
-              </div>
-
-              <div class="usage-section">
-                <div class="usage-section-header">
-                  <span class="usage-section-label">Claude Sonnet 5.5</span>
-                  <span class="usage-section-reset">Resets in 4h 58m</span>
-                </div>
-                <div class="usage-progress">
-                  <div class="usage-progress-bar green" id="bar3" style="width: 32%;"></div>
-                </div>
-                <div class="usage-section-meta">
-                  <span id="pct3">32% used</span>
-                  <span id="rem3">68% remaining</span>
-                </div>
-              </div>
-
-              <div class="usage-section">
-                <div class="usage-section-header">
-                  <span class="usage-section-label">Claude Opus 5.5</span>
-                  <span class="usage-section-reset">Resets in 4h 58m</span>
-                </div>
-                <div class="usage-progress">
-                  <div class="usage-progress-bar orange" id="bar4" style="width: 74%;"></div>
-                </div>
-                <div class="usage-section-meta">
-                  <span id="pct4">74% used</span>
-                  <span id="rem4">26% remaining</span>
-                </div>
-              </div>
-
-              <div class="telemetry-grid">
-                <div class="telemetry-card">
-                  <div class="telemetry-card-title">Today Telemetry</div>
-                  <div class="telemetry-card-val">42.8K tok</div>
-                  <div class="telemetry-card-sub">In 40.6K · Out 2.2K · Cache 164K</div>
-                </div>
-                <div class="telemetry-card">
-                  <div class="telemetry-card-title">All-Time (173 sessions)</div>
-                  <div class="telemetry-card-val">1.3M tok</div>
-                  <div class="telemetry-card-sub">In 1.2M · Out 109K · Cache 11.2M</div>
-                </div>
-              </div>
-
-              <div class="usage-popup-footer">
-                <span id="lastUpdated">Updated just now · port 51889</span>
-                <span class="usage-popup-refresh" onclick="simulateUsage()">Simulate Refresh ↻</span>
-              </div>
-            </div>
+        <div>
+          <div style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); margin-bottom: 6px; text-transform: uppercase;">
+            // TERMINAL QUICK-BUILD (CLICK TO COPY)
+          </div>
+          <div class="cli-box" id="copyCli">
+            <code><span class="prompt">$</span>git clone https://github.com/Kritternai/AntigravityUsageBar.git &amp;&amp; cd AntigravityUsageBar/app &amp;&amp; ./build.sh</code>
+            <span class="copy-pill" id="copyStatus">COPY</span>
           </div>
         </div>
       </div>
 
-      <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank" class="twin-card">
-        <div style="width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #da7756, #b85a42); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          <svg viewBox="0 0 16 16" width="22" height="22" fill="white"><path d="M8 1L9 6L13 3L10 7L15 8L10 9L13 13L9 10L8 15L7 10L3 13L6 9L1 8L6 7L3 3L7 6L8 1Z"/></svg>
+      <!-- Interactive HUD Simulator -->
+      <div class="hero-right">
+        <div class="cockpit-controls">
+          <div class="cockpit-label">
+            <span class="pulse-dot"></span> INTERACTIVE HUD SIMULATOR
+          </div>
+          <div class="mode-switch">
+            <button class="mode-btn active" onclick="setScenario('normal', this)">NOMINAL</button>
+            <button class="mode-btn" onclick="setScenario('heavy', this)">HEAVY BURN</button>
+            <button class="mode-btn" onclick="setScenario('critical', this)">CRITICAL 92%</button>
+          </div>
         </div>
+
+        <div class="macos-stage">
+          <div class="macos-menubar">
+            <div class="menubar-left">
+              <span></span>
+              <span style="color: var(--text-main); font-weight: 600;">Antigravity</span>
+              <span>File</span>
+              <span>Edit</span>
+              <span>Terminal</span>
+            </div>
+            <div class="menubar-right">
+              <div class="agy-menubar-pill" id="simMenuPill">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                  <path id="simMenuIcon" d="M8 1L9.5 6L15 8L9.5 10L8 15L6.5 10L1 8L6.5 6L8 1Z" fill="#10b981"/>
+                </svg>
+                <span id="simMenuPct">4%</span>
+              </div>
+              <span style="color: var(--text-dim);">⌘⇧U</span>
+            </div>
+          </div>
+
+          <div class="agy-popover">
+            <div class="pop-head">
+              <div>
+                <div class="pop-title">
+                  Antigravity Usage
+                  <span class="pop-badge">Google AI Pro</span>
+                </div>
+                <div class="pop-sub">PID 48561 · 127.0.0.1:51889</div>
+              </div>
+              <div class="pop-live">
+                <span class="pulse-dot"></span> LIVE RPC
+              </div>
+            </div>
+
+            <div class="quota-list">
+              <!-- Row 1 -->
+              <div>
+                <div class="quota-row-top">
+                  <span class="model-name">Gemini 4 Argon <span class="active-chip">ACTIVE</span></span>
+                  <span class="reset-clock">Resets in 6d 16h</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" id="qBar1" style="width: 8%; background: var(--emerald);"></div>
+                  <div class="pace-tick" style="left: 18%;" title="Pace Marker"></div>
+                </div>
+                <div class="quota-row-bottom">
+                  <span id="qUsed1">4% used</span>
+                  <span id="qRem1">96% remaining</span>
+                </div>
+              </div>
+
+              <!-- Row 2 -->
+              <div>
+                <div class="quota-row-top">
+                  <span class="model-name">Gemini 3.8 Flash</span>
+                  <span class="reset-clock">Resets in 4h 50m</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" id="qBar2" style="width: 12%; background: var(--emerald);"></div>
+                  <div class="pace-tick" style="left: 25%;"></div>
+                </div>
+                <div class="quota-row-bottom">
+                  <span id="qUsed2">12% used</span>
+                  <span id="qRem2">88% remaining</span>
+                </div>
+              </div>
+
+              <!-- Row 3 -->
+              <div>
+                <div class="quota-row-top">
+                  <span class="model-name">Claude Sonnet 5.5</span>
+                  <span class="reset-clock">Resets in 4h 55m</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" id="qBar3" style="width: 28%; background: var(--emerald);"></div>
+                  <div class="pace-tick" style="left: 35%;"></div>
+                </div>
+                <div class="quota-row-bottom">
+                  <span id="qUsed3">28% used</span>
+                  <span id="qRem3">72% remaining</span>
+                </div>
+              </div>
+
+              <!-- Row 4 -->
+              <div>
+                <div class="quota-row-top">
+                  <span class="model-name">Claude Opus 5.5</span>
+                  <span class="reset-clock">Resets in 4h 55m</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" id="qBar4" style="width: 64%; background: var(--emerald);"></div>
+                  <div class="pace-tick" style="left: 50%;"></div>
+                </div>
+                <div class="quota-row-bottom">
+                  <span id="qUsed4">64% used</span>
+                  <span id="qRem4">36% remaining</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tok-matrix">
+              <div class="tok-cell">
+                <div class="tok-cell-label">TODAY TELEMETRY</div>
+                <div class="tok-cell-val" id="simTodayTok">42.8K tok</div>
+                <div class="tok-cell-break">In 40.6K · Out 2.2K · Cache 164K</div>
+              </div>
+              <div class="tok-cell">
+                <div class="tok-cell-label">ALL-TIME (173 SESSIONS)</div>
+                <div class="tok-cell-val" id="simTotalTok">1.31M tok</div>
+                <div class="tok-cell-break">In 1.2M · Out 109K · Cache 11.2M</div>
+              </div>
+            </div>
+
+            <div class="pop-foot">
+              <span>Prompt: 500 · Flow: 100</span>
+              <span style="color: var(--cyan);">PACE TICK: ON</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 01. Architecture Pipeline -->
+    <div class="sec-head" id="pipeline">
+      <div>
+        <div class="sec-tag">// 01. ZERO-CONFIG PIPELINE</div>
+        <h2 class="sec-title">HOW IT READS QUOTAS WITHOUT COOKIES</h2>
+      </div>
+      <div style="font-family: var(--mono); font-size: 12px; color: var(--text-dim);">
+        100% LOCALHOST LOOPBACK · ZERO EXTERNAL REQUESTS
+      </div>
+    </div>
+
+    <section class="pipeline-grid">
+      <div class="pipe-step">
+        <span class="pipe-num">STEP 01 // PROCESS SCAN</span>
+        <h3>Auto-Discover Daemon</h3>
+        <p>
+          Scans active macOS processes for Antigravity's background
+          <code>language_server</code> and extracts the dynamic
+          <code>--csrf_token</code> and listening TCP ports via <code>lsof</code>.
+        </p>
+        <div class="pipe-code">ps -ax | grep language_server --csrf_token</div>
+      </div>
+
+      <div class="pipe-step">
+        <span class="pipe-num">STEP 02 // LOCALHOST RPC</span>
+        <h3>Query GetUserStatus</h3>
+        <p>
+          Executes a local Connect-RPC POST over <code>127.0.0.1</code> to fetch real-time
+          <code>remainingFraction</code>, <code>resetTime</code>, and plan credit balances for every model.
+        </p>
+        <div class="pipe-code">POST /exa.language_server_pb.LanguageServerService/GetUserStatus</div>
+      </div>
+
+      <div class="pipe-step">
+        <span class="pipe-num">STEP 03 // TRANSCRIPT PARSER</span>
+        <h3>Aggregate Token Logs</h3>
+        <p>
+          Parses local JSONL logs inside <code>~/.gemini/antigravity/brain</code> to compute exact
+          Today and All-Time input, output, and cache-read token counts.
+        </p>
+        <div class="pipe-code">~/.gemini/antigravity/brain/*/transcript.jsonl</div>
+      </div>
+    </section>
+
+    <!-- 02. Technical Specs Bento -->
+    <div class="sec-head" id="specs">
+      <div>
+        <div class="sec-tag">// 02. INSTRUMENTATION SPECS</div>
+        <h2 class="sec-title">ENGINEERED FOR AGENTIC WORKFLOWS</h2>
+      </div>
+    </div>
+
+    <section class="bento-grid">
+      <div class="bento-card span-7">
         <div>
-          <div class="twin-card-title">Inspired by Kritternai/ClaudeUsageBar</div>
-          <div class="twin-card-desc">Using Claude.ai directly? Check out the original ClaudeUsageBar for macOS</div>
+          <div class="bento-meta">MULTI-MODEL QUOTA ENGINE</div>
+          <h3>Tracks Every Cascade Model Pool</h3>
+          <p>
+            Antigravity allocates separate quota buckets across model families. Toggle between
+            <strong>Grouped Family View</strong> or <strong>All Tiers (Low / Medium / High)</strong>
+            and automatically highlight your currently selected model from <code>antigravity_state.pbtxt</code>.
+          </p>
         </div>
-        <span class="twin-card-arrow">&rarr;</span>
-      </a>
-    </div>
-  </section>
-
-  <section class="features" id="features">
-    <div class="features-header">
-      <h2>Built for Google Antigravity</h2>
-      <p>Zero manual configuration. Instant local telemetry.</p>
-    </div>
-
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
+        <div class="model-matrix">
+          <div class="model-chip"><span>Gemini 4 Argon (L/M/H)</span><span>7-DAY POOL</span></div>
+          <div class="model-chip"><span>Gemini 3.8 Flash (L/M/H)</span><span>5-HOUR POOL</span></div>
+          <div class="model-chip"><span>Claude Sonnet 5.5 (L/M/H)</span><span>5-HOUR POOL</span></div>
+          <div class="model-chip"><span>Claude Opus 5.5 (L/M/H)</span><span>5-HOUR POOL</span></div>
         </div>
-        <h3>Zero-Config Auto-Discovery</h3>
-        <p>No browser DevTools or cookie copying needed. Automatically discovers your local Antigravity <code>language_server</code> process, port, and CSRF token.</p>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
+      <div class="bento-card span-5">
+        <div>
+          <div class="bento-meta">BURNRATE TELEMETRY</div>
+          <h3>Window Pace Markers</h3>
+          <p>
+            Enable the Pace Marker tick on any progress bar to compare your actual quota consumption against
+            linear elapsed time in the 5-hour or 7-day reset window. Know immediately if you are burning quota too fast.
+          </p>
         </div>
-        <h3>All Antigravity Models</h3>
-        <p>Monitors remaining quota and exact reset times across Gemini 4 Argon, Gemini 3.8 Flash, Claude Sonnet 5.5, Claude Opus 5.5, and GPT-OSS 120B.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
-          </svg>
+        <div class="pipe-code" style="margin-top: 20px;">
+          On pace: 42% by now · 2d 22h into 7d window
         </div>
-        <h3>Local Token Telemetry</h3>
-        <p>Scans <code>~/.gemini/antigravity/brain</code> transcripts locally to aggregate Today and All-Time input, output, and cache-read tokens.</p>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
+      <div class="bento-card span-4">
+        <div>
+          <div class="bento-meta">GLOBAL HOTKEY</div>
+          <h3>⌘⇧U Instant Toggle</h3>
+          <p>
+            Summon or dismiss the telemetry popover from any IDE, terminal, or fullscreen space using
+            <code>Cmd+Shift+U</code>—designed to run alongside ClaudeUsageBar (<code>⌘U</code>) with zero shortcut conflict.
+          </p>
         </div>
-        <h3>Smart Threshold Alerts</h3>
-        <p>Receive native macOS notifications when your active model quota crosses 25%, 50%, 75%, and 90% utilization.</p>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
+      <div class="bento-card span-4">
+        <div>
+          <div class="bento-meta">THRESHOLD ALERTS</div>
+          <h3>25 / 50 / 75 / 90%</h3>
+          <p>
+            Native macOS notifications fire automatically as your active model crosses critical quota thresholds,
+            and reset cleanly when your window renews.
+          </p>
         </div>
-        <h3>Pace Marker</h3>
-        <p>Visual tick marker on every bar showing where your usage should sit based on how far into the 5-hour or 7-day reset window you are.</p>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
+      <div class="bento-card span-4">
+        <div>
+          <div class="bento-meta">NATIVE SWIFT + APPKIT</div>
+          <h3>Universal Binary</h3>
+          <p>
+            Compiled natively for Apple Silicon (<code>arm64</code>) and Intel (<code>x86_64</code>).
+            No Electron, no WebView bloat, and zero dock clutter (<code>LSUIElement</code>).
+          </p>
         </div>
-        <h3>100% Local &amp; Private</h3>
-        <p>Talks strictly to <code>127.0.0.1</code> and local files. Zero external servers, zero telemetry, and fully open source under the MIT License.</p>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="faq" id="faq">
-    <div class="faq-header">
-      <h2>Frequently Asked Questions</h2>
-      <p>How AntigravityUsageBar works under the hood</p>
-    </div>
-
-    <div class="faq-grid">
-      <div class="faq-item">
-        <div class="faq-question">How does AntigravityUsageBar fetch my quota without cookies?</div>
-        <div class="faq-answer">When Google Antigravity is running on your Mac, its background <code>language_server</code> listens on a localhost port. AntigravityUsageBar finds the running process, reads its ephemeral port and <code>--csrf_token</code>, and queries <code>LanguageServerService/GetUserStatus</code> over <code>127.0.0.1</code>.</div>
+    <!-- Lineage / Open Source Credit -->
+    <section class="lineage-panel" id="lineage">
+      <div class="lineage-text">
+        <div class="sec-tag">// 03. OPEN SOURCE LINEAGE</div>
+        <h3>Inspired by Kritternai/ClaudeUsageBar</h3>
+        <p>
+          Built in the spirit of <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank">Kritternai/ClaudeUsageBar</a>,
+          re-engineered from the ground up for Google Antigravity's local language server RPC and transcript telemetry.
+        </p>
       </div>
-
-      <div class="faq-item">
-        <div class="faq-question">macOS says the app cannot be opened or is from an unidentified developer?</div>
-        <div class="faq-answer">Because this is a free open-source build signed ad-hoc, right-click <strong>AntigravityUsageBar.app</strong> and choose <strong>Open</strong>, or run <code>xattr -cr /Applications/AntigravityUsageBar.app</code> in Terminal.</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank" class="btn-ghost">
+          VIEW CLAUDEUSAGEBAR ↗
+        </a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank" class="btn-primary">
+          GET ANTIGRAVITYUSAGEBAR ↗
+        </a>
       </div>
+    </section>
 
-      <div class="faq-item">
-        <div class="faq-question">What keyboard shortcut toggles the popup?</div>
-        <div class="faq-answer">Press <code>Cmd + Shift + U</code> (<code>⌘⇧U</code>) from anywhere on macOS. It uses <code>⌘⇧U</code> so it can run side-by-side with <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank">ClaudeUsageBar</a> (<code>⌘U</code>) without conflict.</div>
+    <footer>
+      <div>
+        AGY // TELEMETRY — MIT LICENSE © 2026 KRITTERNAI
       </div>
-    </div>
-  </section>
-
-  <footer>
-    <div class="footer-content">
-      <p class="footer-text">Inspired by <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank" style="color: var(--agy-cyan); text-decoration: none;">Kritternai/ClaudeUsageBar</a> · Built for the Google Antigravity community</p>
-      <div class="footer-links">
-        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">GitHub</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank">Releases</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/blob/main/LICENSE" target="_blank">MIT License</a>
-        <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank">ClaudeUsageBar</a>
+      <div>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">GITHUB</a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank">RELEASES</a>
+        <a href="https://github.com/Kritternai/ClaudeUsageBar" target="_blank">CLAUDEUSAGEBAR</a>
       </div>
-    </div>
-  </footer>
+    </footer>
+  </main>
 
   <script>
-    document.getElementById('cloneCmd').addEventListener('click', function () {
+    document.getElementById('copyCli').addEventListener('click', function () {
       navigator.clipboard.writeText('git clone https://github.com/Kritternai/AntigravityUsageBar.git && cd AntigravityUsageBar/app && ./build.sh').then(() => {
-        this.classList.add('copied');
-        const label = document.getElementById('cloneLabel');
-        const prev = label.textContent;
-        label.textContent = 'Copied to clipboard ✓';
-        setTimeout(() => { this.classList.remove('copied'); label.textContent = prev; }, 1600);
+        const st = document.getElementById('copyStatus');
+        st.textContent = 'COPIED ✓';
+        st.style.background = 'var(--emerald)';
+        st.style.color = '#000';
+        setTimeout(() => {
+          st.textContent = 'COPY';
+          st.style.background = 'transparent';
+          st.style.color = 'var(--cyan)';
+        }, 1600);
       });
     });
 
-    function setBar(id, pctId, remId, val) {
-      const bar = document.getElementById(id);
-      bar.style.width = Math.max(4, val) + '%';
-      bar.className = 'usage-progress-bar ' + (val < 70 ? 'green' : val < 90 ? 'orange' : 'red');
-      document.getElementById(pctId).textContent = val + '% used';
-      document.getElementById(remId).textContent = (100 - val) + '% remaining';
+    const scenarios = {
+      normal:   { q: [4, 12, 28, 64], today: '42.8K tok', total: '1.31M tok' },
+      heavy:    { q: [74, 58, 81, 86], today: '318.4K tok', total: '1.59M tok' },
+      critical: { q: [92, 88, 95, 97], today: '890.1K tok', total: '2.16M tok' }
+    };
+
+    function colorFor(pct) {
+      if (pct < 70) return 'var(--emerald)';
+      if (pct < 90) return 'var(--amber)';
+      return 'var(--crimson)';
     }
 
-    function simulateUsage() {
-      const v1 = Math.floor(Math.random() * 88) + 4;
-      const v2 = Math.floor(Math.random() * 75) + 5;
-      const v3 = Math.floor(Math.random() * 90) + 5;
-      const v4 = Math.floor(Math.random() * 92) + 5;
-      setBar('bar1', 'pct1', 'rem1', v1);
-      setBar('bar2', 'pct2', 'rem2', v2);
-      setBar('bar3', 'pct3', 'rem3', v3);
-      setBar('bar4', 'pct4', 'rem4', v4);
+    function setScenario(key, btn) {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
 
-      const menuPct = document.getElementById('menuBarPercent');
-      menuPct.textContent = v1 + '%';
-      menuPct.style.color = v1 < 70 ? '#22c55e' : v1 < 90 ? '#f59e0b' : '#ef4444';
+      const s = scenarios[key];
+      s.q.forEach((val, idx) => {
+        const i = idx + 1;
+        const bar = document.getElementById('qBar' + i);
+        bar.style.width = Math.max(5, val) + '%';
+        bar.style.background = colorFor(val);
+        document.getElementById('qUsed' + i).textContent = val + '% used';
+        document.getElementById('qRem' + i).textContent = (100 - val) + '% remaining';
+      });
+
+      const primary = s.q[0];
+      const c = colorFor(primary);
+      document.getElementById('simMenuPct').textContent = primary + '%';
+      document.getElementById('simMenuPill').style.color = c;
+      document.getElementById('simMenuIcon').setAttribute('fill', c);
+      document.getElementById('simTodayTok').textContent = s.today;
+      document.getElementById('simTotalTok').textContent = s.total;
     }
 
     fetch('https://api.github.com/repos/Kritternai/AntigravityUsageBar')
       .then(r => r.json())
       .then(d => {
         if (typeof d.stargazers_count === 'number') {
-          document.getElementById('starNumber').textContent = d.stargazers_count;
+          document.getElementById('ghStars').textContent = '[★ ' + d.stargazers_count + ']';
         }
       })
       .catch(() => {});
