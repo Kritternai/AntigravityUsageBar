@@ -5,6 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![macOS](https://img.shields.io/badge/macOS-12.0+-blue.svg)](https://www.apple.com/macos/)
 [![Release](https://img.shields.io/github/v/release/Kritternai/AntigravityUsageBar)](https://github.com/Kritternai/AntigravityUsageBar/releases)
+[![Website](https://img.shields.io/badge/Website-GitHub_Pages-38bdf8)](https://kritternai.github.io/AntigravityUsageBar/)
+
+🌐 **Website / Live Demo**: **[https://kritternai.github.io/AntigravityUsageBar/](https://kritternai.github.io/AntigravityUsageBar/)**
 
 A lightweight, open-source macOS menu bar application (built with Swift & SwiftUI) that displays your **Google Antigravity** model usage limits, reset times, plan credits, and local token telemetry in real time.
 
