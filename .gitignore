@@ -1,0 +1,7 @@
+build/
+dmg_temp/
+*.dmg
+*.zip
+*.iconset/
+.DS_Store
+
