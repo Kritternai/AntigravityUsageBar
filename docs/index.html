@@ -3,1219 +3,1020 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#07080c">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="canonical" href="https://kritternai.github.io/AntigravityUsageBar/">
-  <title>AGY // TELEMETRY — AntigravityUsageBar for macOS</title>
-  <meta name="description" content="Zero-config macOS menu bar HUD for Google Antigravity. Real-time model quota telemetry, local language_server RPC inspection, and transcript token analytics.">
+  <title>AntigravityUsageBar — Antigravity quotas in your Mac menu bar</title>
+  <meta name="description" content="A tiny, free, open-source macOS menu bar app that shows your Google Antigravity model quotas, reset times, and local token usage. Zero setup.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://kritternai.github.io/AntigravityUsageBar/">
-  <meta property="og:title" content="AGY // TELEMETRY — AntigravityUsageBar for macOS">
-  <meta property="og:description" content="Zero-config macOS menu bar HUD for Google Antigravity. Real-time model quota telemetry, local language_server RPC inspection, and transcript token analytics.">
+  <meta property="og:title" content="AntigravityUsageBar">
+  <meta property="og:description" content="Google Antigravity quotas, reset times, and token usage — quietly in your Mac menu bar.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Share+Tech+Mono&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #07080c;
-      --bg-panel: #0d1017;
-      --bg-panel-alt: #111622;
-      --bg-hud: #090c12;
-      --border-grid: #1c2436;
-      --border-bright: #2e3d5c;
-      --text-main: #f1f5f9;
-      --text-dim: #94a3b8;
-      --text-mute: #475569;
-      --cyan: #00f0ff;
-      --emerald: #10b981;
-      --amber: #f59e0b;
-      --crimson: #f43f5e;
-      --cobalt: #3b82f6;
-      --mono: 'Fira Code', monospace;
-      --hud-font: 'Share Tech Mono', monospace;
-      --display: 'Space Grotesk', sans-serif;
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --text: #0a0a0a;
+      --text-2: #525252;
+      --text-3: #a3a3a3;
+      --line: #e5e5e5;
+      --line-soft: #f0f0f0;
+      --accent: #2563eb;
+      --green: #16a34a;
+      --amber: #d97706;
+      --red: #dc2626;
+      --track: #ececec;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 40px -12px rgba(0,0,0,.12);
+      --radius: 14px;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0a0a;
+        --surface: #141414;
+        --text: #fafafa;
+        --text-2: #a3a3a3;
+        --text-3: #6b6b6b;
+        --line: #262626;
+        --line-soft: #1c1c1c;
+        --accent: #60a5fa;
+        --green: #22c55e;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --track: #262626;
+        --shadow: 0 1px 2px rgba(0,0,0,.4), 0 20px 50px -20px rgba(0,0,0,.7);
+      }
     }
 
-    html {
-      scroll-behavior: smooth;
-      background-color: var(--bg-void);
-      color: var(--text-main);
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: var(--display);
-      background-color: var(--bg-void);
-      background-image:
-        linear-gradient(to right, rgba(28, 36, 54, 0.35) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(28, 36, 54, 0.35) 1px, transparent 1px);
-      background-size: 48px 48px;
-      color: var(--text-main);
-      line-height: 1.5;
-      overflow-x: hidden;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Top System Telemetry Strip */
-    .telemetry-strip {
+    a { color: inherit; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+
+    .wrap {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Nav */
+    header {
       position: sticky;
       top: 0;
-      z-index: 100;
-      background: rgba(7, 8, 12, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border-grid);
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text-dim);
+      z-index: 10;
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      backdrop-filter: saturate(180%) blur(14px);
+      -webkit-backdrop-filter: saturate(180%) blur(14px);
+      border-bottom: 1px solid transparent;
+      transition: border-color .2s;
     }
 
-    .strip-inner {
-      max-width: 1360px;
-      margin: 0 auto;
-      padding: 10px 24px;
+    header.scrolled { border-bottom-color: var(--line); }
+
+    .nav {
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
     }
 
-    .strip-left, .strip-right {
+    .brand {
       display: flex;
       align-items: center;
-      gap: 18px;
-      flex-wrap: wrap;
-    }
-
-    .sys-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--cyan);
+      gap: 10px;
+      text-decoration: none;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      font-size: 15px;
+      letter-spacing: -0.01em;
     }
 
-    .pulse-dot {
-      width: 7px;
-      height: 7px;
-      background: var(--emerald);
-      box-shadow: 0 0 10px var(--emerald);
+    .brand svg { width: 22px; height: 22px; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      font-size: 14px;
     }
 
-    .strip-kv {
-      color: var(--text-mute);
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-2);
+      transition: color .15s;
     }
-    .strip-kv strong {
-      color: var(--text-main);
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-links .pill {
+      color: var(--bg);
+      background: var(--text);
+      padding: 8px 14px;
+      border-radius: 999px;
       font-weight: 500;
     }
 
-    .strip-nav a {
-      color: var(--text-dim);
-      text-decoration: none;
-      margin-left: 20px;
-      transition: color 0.15s;
-    }
-    .strip-nav a:hover {
-      color: var(--cyan);
+    .nav-links .pill:hover { color: var(--bg); opacity: .85; }
+
+    /* Hero */
+    .hero {
+      padding: 104px 0 72px;
+      text-align: center;
     }
 
-    /* Main Wrapper */
-    .shell {
-      max-width: 1360px;
-      margin: 0 auto;
-      padding: 32px 24px 96px;
-    }
-
-    /* Split Asymmetric Hero */
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      border: 1px solid var(--border-grid);
-      background: rgba(13, 16, 23, 0.85);
-      position: relative;
-    }
-
-    .hero-grid::before {
-      content: 'SYS.HUD // ANTIGRAVITY_USAGE_BAR_V1.0.0';
-      position: absolute;
-      top: -10px;
-      left: 16px;
-      background: var(--bg-void);
-      padding: 0 8px;
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--cyan);
-      letter-spacing: 0.08em;
-    }
-
-    .hero-left {
-      padding: 56px 48px;
-      border-right: 1px solid var(--border-grid);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .kicker {
+    .eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--emerald);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 20px;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-2);
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 28px;
     }
 
-    .kicker span {
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.35);
-      padding: 2px 8px;
+    .eyebrow .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
     }
 
     h1 {
-      font-size: clamp(36px, 5vw, 62px);
-      font-weight: 700;
-      line-height: 1.04;
-      letter-spacing: -0.03em;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-    }
-
-    h1 .accent {
-      color: var(--cyan);
-      font-family: var(--hud-font);
-      font-weight: 400;
-      display: block;
-    }
-
-    .hero-lead {
-      font-size: 17px;
-      color: var(--text-dim);
-      max-width: 560px;
-      margin-bottom: 36px;
-      line-height: 1.65;
-    }
-
-    .hero-lead code {
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--cyan);
-      background: rgba(0, 240, 255, 0.08);
-      padding: 2px 6px;
-    }
-
-    .cta-row {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      margin-bottom: 36px;
-    }
-
-    .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--cyan);
-      color: #030712;
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 16px 24px;
-      text-decoration: none;
-      border: 1px solid var(--cyan);
-      transition: all 0.15s;
-      cursor: pointer;
-    }
-
-    .btn-primary:hover {
-      background: transparent;
-      color: var(--cyan);
-      box-shadow: 0 0 24px rgba(0, 240, 255, 0.25);
-    }
-
-    .btn-ghost {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg-panel-alt);
-      color: var(--text-main);
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 500;
-      padding: 16px 22px;
-      text-decoration: none;
-      border: 1px solid var(--border-bright);
-      transition: all 0.15s;
-    }
-
-    .btn-ghost:hover {
-      border-color: var(--cyan);
-      color: var(--cyan);
-    }
-
-    .cli-box {
-      background: var(--bg-hud);
-      border: 1px solid var(--border-grid);
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      cursor: pointer;
-      transition: border-color 0.15s;
-    }
-
-    .cli-box:hover {
-      border-color: var(--cyan);
-    }
-
-    .cli-box code {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text-dim);
-      overflow-x: auto;
-      white-space: nowrap;
-    }
-
-    .cli-box code .prompt {
-      color: var(--emerald);
-      margin-right: 8px;
-    }
-
-    .copy-pill {
-      font-family: var(--mono);
-      font-size: 10px;
-      text-transform: uppercase;
-      color: var(--cyan);
-      border: 1px solid rgba(0, 240, 255, 0.3);
-      padding: 3px 8px;
-      flex-shrink: 0;
-    }
-
-    /* Hero Right: Interactive Live Cockpit */
-    .hero-right {
-      padding: 32px;
-      background:
-        radial-gradient(circle at 80% 20%, rgba(0, 240, 255, 0.08), transparent 55%),
-        var(--bg-hud);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .cockpit-controls {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      border-bottom: 1px solid var(--border-grid);
-      padding-bottom: 14px;
-      flex-wrap: wrap;
-    }
-
-    .cockpit-label {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .mode-switch {
-      display: flex;
-      gap: 4px;
-      background: var(--bg-panel);
-      padding: 3px;
-      border: 1px solid var(--border-grid);
-    }
-
-    .mode-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-dim);
-      font-family: var(--mono);
-      font-size: 10px;
-      padding: 5px 9px;
-      cursor: pointer;
-      text-transform: uppercase;
-    }
-
-    .mode-btn.active {
-      background: var(--cobalt);
-      color: #fff;
+      font-size: clamp(40px, 6.4vw, 68px);
       font-weight: 600;
+      letter-spacing: -0.045em;
+      line-height: 1.04;
+      max-width: 820px;
+      margin: 0 auto 22px;
+      text-wrap: balance;
     }
 
-    /* Simulated macOS Menu Bar + Popover */
-    .macos-stage {
+    h1 .muted { color: var(--text-3); }
+
+    .lead {
+      font-size: 18px;
+      color: var(--text-2);
+      max-width: 540px;
+      margin: 0 auto 40px;
+      text-wrap: pretty;
+    }
+
+    .actions {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 0;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .macos-menubar {
-      width: 100%;
-      background: #141923;
-      border: 1px solid var(--border-bright);
-      padding: 7px 16px;
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      height: 48px;
+      padding: 0 22px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: transform .15s ease, opacity .15s ease, border-color .15s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+
+    .btn svg { width: 17px; height: 17px; }
+
+    .btn-dark {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    .btn-dark:hover { opacity: .88; }
+
+    .btn-light {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-light:hover { border-color: var(--text-3); }
+
+    .meta {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-3);
+    }
+
+    /* Preview */
+    .preview {
+      padding: 24px 0 120px;
+    }
+
+    .stage {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 0 0 56px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .menubar {
+      height: 34px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-family: var(--mono);
-      font-size: 12px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 13px;
+      color: var(--text-2);
     }
 
-    .menubar-left {
-      display: flex;
-      gap: 16px;
-      color: var(--text-mute);
-    }
+    .menubar-left { display: flex; gap: 18px; }
+    .menubar-left strong { color: var(--text); font-weight: 600; }
 
     .menubar-right {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
 
-    .agy-menubar-pill {
+    .tray {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      padding: 3px 9px;
-      border: 1px solid rgba(0, 240, 255, 0.35);
-      font-weight: 600;
-      color: var(--emerald);
-      cursor: pointer;
+      gap: 5px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--line-soft);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
     }
 
-    .agy-popover {
-      width: 100%;
-      max-width: 400px;
-      background: #11151f;
-      border: 1px solid var(--border-bright);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
-      padding: 18px;
+    .tray svg { width: 13px; height: 13px; }
+
+    .popover {
+      width: min(380px, calc(100% - 32px));
+      margin: 28px auto 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      text-align: left;
     }
 
     .pop-head {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 14px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-grid);
+      margin-bottom: 20px;
     }
 
     .pop-title {
-      font-size: 15px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .pop-badge {
-      background: var(--cobalt);
-      color: #fff;
-      font-family: var(--mono);
-      font-size: 9px;
-      padding: 2px 7px;
-      text-transform: uppercase;
-    }
-
-    .pop-sub {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-mute);
-      margin-top: 3px;
-    }
-
-    .pop-live {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--emerald);
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .quota-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .quota-row-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      margin-bottom: 5px;
-    }
-
-    .model-name {
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      font-size: 15px;
+      letter-spacing: -0.01em;
     }
 
-    .active-chip {
-      font-family: var(--mono);
-      font-size: 9px;
-      color: var(--cyan);
-      border: 1px solid var(--cyan);
-      padding: 0 4px;
+    .tag {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-2);
+      border: 1px solid var(--line);
+      padding: 2px 8px;
+      border-radius: 999px;
     }
 
-    .reset-clock {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-dim);
-    }
+    .row { margin-bottom: 16px; }
 
-    .bar-track {
-      height: 7px;
-      background: #1e2638;
-      position: relative;
-      overflow: hidden;
-      margin-bottom: 4px;
-    }
-
-    .bar-fill {
-      height: 100%;
-      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s;
-    }
-
-    .pace-tick {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #ffffff;
-      opacity: 0.85;
-      transition: left 0.35s ease;
-    }
-
-    .quota-row-bottom {
+    .row-top {
       display: flex;
       justify-content: space-between;
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-mute);
+      align-items: baseline;
+      font-size: 13px;
+      margin-bottom: 7px;
     }
 
-    .tok-matrix {
+    .row-top .name { font-weight: 500; }
+
+    .row-top .active {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-left: 6px;
+      letter-spacing: .04em;
+    }
+
+    .row-top .reset {
+      color: var(--text-3);
+      font-size: 12px;
+    }
+
+    .track {
+      height: 5px;
+      border-radius: 99px;
+      background: var(--track);
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--green);
+      transition: width .5s cubic-bezier(.22,1,.36,1), background-color .3s;
+    }
+
+    .row-bottom {
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tokens {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      padding-top: 12px;
-      border-top: 1px solid var(--border-grid);
+      gap: 10px;
+      padding-top: 16px;
+      margin-top: 4px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .tok-label {
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .tok-val {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stage-controls {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      background: var(--line-soft);
+      padding: 4px;
+      border-radius: 999px;
+    }
+
+    .seg {
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 12px;
+      color: var(--text-2);
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+
+    .seg[aria-pressed="true"] {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+    }
+
+    /* Sections */
+    section.block {
+      padding: 96px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-head {
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+
+    .kicker {
+      font-size: 13px;
+      color: var(--text-3);
       margin-bottom: 12px;
     }
 
-    .tok-cell {
-      background: #0b0e16;
-      border: 1px solid var(--border-grid);
-      padding: 8px 10px;
+    h2 {
+      font-size: clamp(28px, 3.6vw, 38px);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      text-wrap: balance;
     }
 
-    .tok-cell-label {
-      font-family: var(--mono);
-      font-size: 9px;
-      color: var(--text-mute);
-      text-transform: uppercase;
-    }
-
-    .tok-cell-val {
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--cyan);
-      margin: 2px 0;
-    }
-
-    .tok-cell-break {
-      font-family: var(--mono);
-      font-size: 9px;
-      color: var(--text-dim);
-    }
-
-    .pop-foot {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-mute);
-      padding-top: 8px;
-      border-top: 1px solid var(--border-grid);
-    }
-
-    /* Section Header */
-    .sec-head {
-      margin: 80px 0 32px;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-grid);
-      padding-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-
-    .sec-tag {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--cyan);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
-    }
-
-    .sec-title {
-      font-size: clamp(24px, 3.5vw, 36px);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-    }
-
-    /* Architecture Pipeline Diagram */
-    .pipeline-grid {
+    .features {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      border: 1px solid var(--border-grid);
-      background: var(--bg-panel);
+      gap: 48px 40px;
     }
 
-    .pipe-step {
-      padding: 32px;
-      border-right: 1px solid var(--border-grid);
-      position: relative;
-    }
-    .pipe-step:last-child {
-      border-right: none;
-    }
-
-    .pipe-num {
-      font-family: var(--hud-font);
-      font-size: 13px;
-      color: var(--cyan);
-      border: 1px solid rgba(0, 240, 255, 0.3);
-      display: inline-block;
-      padding: 2px 8px;
-      margin-bottom: 16px;
-    }
-
-    .pipe-step h3 {
-      font-size: 19px;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-    }
-
-    .pipe-step p {
-      font-size: 14px;
-      color: var(--text-dim);
+    .feature svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--text);
       margin-bottom: 18px;
     }
 
-    .pipe-code {
-      background: var(--bg-void);
-      border: 1px solid var(--border-grid);
-      padding: 10px 12px;
+    .feature h3 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+
+    .feature p {
+      font-size: 15px;
+      color: var(--text-2);
+    }
+
+    code {
       font-family: var(--mono);
-      font-size: 11px;
-      color: var(--emerald);
+      font-size: .88em;
+      background: var(--line-soft);
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+
+    /* Steps */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .step {
+      padding: 32px 28px;
+      border-right: 1px solid var(--line);
+    }
+
+    .step:last-child { border-right: 0; }
+
+    .step-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-3);
+      margin-bottom: 20px;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--text-2);
+    }
+
+    /* Install */
+    .install {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .card ol {
+      padding-left: 18px;
+      color: var(--text-2);
+      font-size: 14px;
+    }
+
+    .card ol li { margin-bottom: 6px; }
+
+    .cmd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--text-2);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .15s;
+    }
+
+    .cmd:hover { border-color: var(--text-3); }
+
+    .cmd span:first-child {
       overflow-x: auto;
       white-space: nowrap;
     }
 
-    /* Bento Technical Specs Grid */
-    .bento-grid {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
+    .cmd .copy {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--text-3);
+      flex-shrink: 0;
+    }
+
+    /* FAQ */
+    .faq { max-width: 720px; }
+
+    details {
+      border-bottom: 1px solid var(--line);
+      padding: 20px 0;
+    }
+
+    details:first-child { border-top: 1px solid var(--line); }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 16px;
     }
 
-    .bento-card {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-grid);
-      padding: 28px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      transition: border-color 0.15s;
-    }
+    summary::-webkit-details-marker { display: none; }
 
-    .bento-card:hover {
-      border-color: var(--cyan);
-    }
-
-    .span-7 { grid-column: span 7; }
-    .span-5 { grid-column: span 5; }
-    .span-4 { grid-column: span 4; }
-    .span-8 { grid-column: span 8; }
-
-    .bento-meta {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--cyan);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 12px;
-    }
-
-    .bento-card h3 {
-      font-size: 21px;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-    }
-
-    .bento-card p {
-      font-size: 14px;
-      color: var(--text-dim);
-      line-height: 1.6;
-    }
-
-    .model-matrix {
-      margin-top: 20px;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      font-family: var(--mono);
-      font-size: 11px;
-    }
-
-    .model-chip {
-      background: var(--bg-void);
-      border: 1px solid var(--border-grid);
-      padding: 8px 10px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .model-chip span:last-child {
-      color: var(--emerald);
-    }
-
-    /* Comparison Table: Zero-Cookie vs Browser Cookie */
-    .comp-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid var(--border-grid);
-      font-family: var(--mono);
-      font-size: 12px;
-      background: var(--bg-panel);
-    }
-
-    .comp-table th, .comp-table td {
-      border: 1px solid var(--border-grid);
-      padding: 14px 18px;
-      text-align: left;
-    }
-
-    .comp-table th {
-      background: var(--bg-hud);
-      color: var(--cyan);
-      text-transform: uppercase;
-      font-size: 11px;
-    }
-
-    .comp-table td.good {
-      color: var(--emerald);
-    }
-
-    /* Origin / Lineage Banner */
-    .lineage-panel {
-      margin-top: 80px;
-      border: 1px solid var(--border-bright);
-      background: linear-gradient(90deg, rgba(13, 16, 23, 0.95), rgba(24, 29, 45, 0.95));
-      padding: 36px 40px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-
-    .lineage-text h3 {
+    summary::after {
+      content: '+';
+      font-weight: 400;
       font-size: 20px;
-      text-transform: uppercase;
-      margin-bottom: 6px;
+      color: var(--text-3);
+      transition: transform .2s;
     }
 
-    .lineage-text p {
-      color: var(--text-dim);
-      font-size: 14px;
+    details[open] summary::after { transform: rotate(45deg); }
+
+    details p {
+      margin-top: 12px;
+      color: var(--text-2);
+      font-size: 15px;
     }
 
-    .lineage-text a {
-      color: var(--cyan);
-      text-decoration: none;
-      font-family: var(--mono);
+    /* Credit */
+    .credit {
+      text-align: center;
+      padding: 96px 0;
+      border-top: 1px solid var(--line);
     }
+
+    .credit p {
+      color: var(--text-2);
+      font-size: 15px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .credit a {
+      color: var(--text);
+      font-weight: 500;
+      text-decoration: underline;
+      text-decoration-color: var(--line);
+      text-underline-offset: 4px;
+      transition: text-decoration-color .15s;
+    }
+
+    .credit a:hover { text-decoration-color: var(--text); }
 
     footer {
-      margin-top: 80px;
-      padding-top: 28px;
-      border-top: 1px solid var(--border-grid);
+      border-top: 1px solid var(--line);
+      padding: 28px 0 40px;
+      font-size: 13px;
+      color: var(--text-3);
+    }
+
+    .foot {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text-mute);
-      flex-wrap: wrap;
       gap: 16px;
+      flex-wrap: wrap;
     }
 
-    footer a {
-      color: var(--text-dim);
+    .foot nav { display: flex; gap: 22px; }
+
+    .foot a {
       text-decoration: none;
-      margin-left: 20px;
-    }
-    footer a:hover {
-      color: var(--cyan);
+      color: var(--text-3);
+      transition: color .15s;
     }
 
-    @media (max-width: 980px) {
-      .hero-grid { grid-template-columns: 1fr; }
-      .hero-left { border-right: none; border-bottom: 1px solid var(--border-grid); padding: 36px 24px; }
-      .pipeline-grid { grid-template-columns: 1fr; }
-      .pipe-step { border-right: none; border-bottom: 1px solid var(--border-grid); }
-      .span-7, .span-5, .span-4, .span-8 { grid-column: span 12; }
+    .foot a:hover { color: var(--text); }
+
+    /* Reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+
+    .reveal.in {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      .fill, .btn { transition: none; }
+    }
+
+    @media (max-width: 820px) {
+      .nav-links a:not(.pill) { display: none; }
+      .hero { padding: 72px 0 56px; }
+      .features { grid-template-columns: 1fr; gap: 36px; }
+      .steps { grid-template-columns: 1fr; }
+      .step { border-right: 0; border-bottom: 1px solid var(--line); }
+      .step:last-child { border-bottom: 0; }
+      .install { grid-template-columns: 1fr; }
+      .menubar-left span:not(:first-child) { display: none; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Telemetry Bar -->
-  <header class="telemetry-strip">
-    <div class="strip-inner">
-      <div class="strip-left">
-        <span class="sys-tag"><span class="pulse-dot"></span> AGY // TELEMETRY_HUD</span>
-        <span class="strip-kv">RPC: <strong>127.0.0.1:language_server</strong></span>
-        <span class="strip-kv">AUTH: <strong>AUTO_CSRF_DISCOVERY</strong></span>
-        <span class="strip-kv">ARCH: <strong>UNIVERSAL (ARM64 + X86_64)</strong></span>
-      </div>
-      <nav class="strip-nav">
-        <a href="#pipeline">[01. ARCHITECTURE]</a>
-        <a href="#specs">[02. TELEMETRY SPECS]</a>
-        <a href="#lineage">[03. LINEAGE]</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">[GITHUB ↗]</a>
+  <header id="top">
+    <div class="wrap nav">
+      <a href="#" class="brand" aria-label="AntigravityUsageBar home">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5L9.4 6.1L14 7.5L9.4 8.9L8 13.5L6.6 8.9L2 7.5L6.6 6.1L8 1.5Z" fill="currentColor"/>
+        </svg>
+        AntigravityUsageBar
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" rel="noopener">GitHub</a>
+        <a class="pill" href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg">Download</a>
       </nav>
     </div>
   </header>
 
-  <main class="shell">
-    <!-- Split Asymmetric Hero + Interactive Simulator -->
-    <section class="hero-grid">
-      <div class="hero-left">
-        <div>
-          <div class="kicker">
-            <span>MIT OPEN SOURCE</span>
-            <span>MACOS 12.0+ NATIVE</span>
-          </div>
-          <h1>
-            ANTIGRAVITY
-            <span class="accent">QUOTA &amp; TOKEN HUD_</span>
-          </h1>
-          <p class="hero-lead">
-            Stop guessing when your Google Antigravity rate limits reset.
-            <strong>AntigravityUsageBar</strong> hooks directly into your local
-            <code>language_server</code> daemon and <code>~/.gemini/antigravity</code>
-            transcript logs—rendering live model quotas, pace ticks, and token burn right in your macOS menu bar.
-          </p>
-
-          <div class="cta-row">
-            <a href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg" class="btn-primary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              DOWNLOAD .DMG (v1.0.0)
-            </a>
-            <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" class="btn-ghost">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-              </svg>
-              SOURCE CODE
-              <span id="ghStars" style="color: var(--cyan);">[★]</span>
-            </a>
-          </div>
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap">
+        <div class="eyebrow"><span class="dot" aria-hidden="true"></span> Free &amp; open source · v1.0.0</div>
+        <h1>Your Antigravity quotas, <span class="muted">quietly in the menu bar.</span></h1>
+        <p class="lead">See remaining quota, reset times, and token usage for every Antigravity model — at a glance. No cookies, no setup.</p>
+        <div class="actions">
+          <a class="btn btn-dark" href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.54 2.66-.39 6.6 1.1 8.76.73 1.06 1.6 2.24 2.73 2.2 1.1-.05 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.41 1.2-2.47-.03-.01-2.27-.87-2.29-3.46zM14.2 6.12c.6-.73 1.01-1.75.9-2.76-.87.04-1.92.58-2.54 1.31-.56.64-1.05 1.67-.92 2.66.97.08 1.96-.49 2.56-1.21z"/></svg>
+            Download for macOS
+          </a>
+          <a class="btn btn-light" href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.22.7.83.58A12 12 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            Star on GitHub <span id="stars" style="color: var(--text-3);"></span>
+          </a>
         </div>
-
-        <div>
-          <div style="font-family: var(--mono); font-size: 10px; color: var(--text-mute); margin-bottom: 6px; text-transform: uppercase;">
-            // TERMINAL QUICK-BUILD (CLICK TO COPY)
-          </div>
-          <div class="cli-box" id="copyCli">
-            <code><span class="prompt">$</span>git clone https://github.com/Kritternai/AntigravityUsageBar.git &amp;&amp; cd AntigravityUsageBar/app &amp;&amp; ./build.sh</code>
-            <span class="copy-pill" id="copyStatus">COPY</span>
-          </div>
-        </div>
+        <p class="meta">macOS 12+ · Apple Silicon &amp; Intel · ~1 MB</p>
       </div>
+    </section>
 
-      <!-- Interactive HUD Simulator -->
-      <div class="hero-right">
-        <div class="cockpit-controls">
-          <div class="cockpit-label">
-            <span class="pulse-dot"></span> INTERACTIVE HUD SIMULATOR
-          </div>
-          <div class="mode-switch">
-            <button class="mode-btn active" onclick="setScenario('normal', this)">NOMINAL</button>
-            <button class="mode-btn" onclick="setScenario('heavy', this)">HEAVY BURN</button>
-            <button class="mode-btn" onclick="setScenario('critical', this)">CRITICAL 92%</button>
-          </div>
-        </div>
-
-        <div class="macos-stage">
-          <div class="macos-menubar">
+    <!-- Preview -->
+    <section class="preview reveal">
+      <div class="wrap">
+        <div class="stage">
+          <div class="menubar" aria-hidden="true">
             <div class="menubar-left">
-              <span></span>
-              <span style="color: var(--text-main); font-weight: 600;">Antigravity</span>
+              <span><strong>Antigravity</strong></span>
               <span>File</span>
               <span>Edit</span>
-              <span>Terminal</span>
+              <span>View</span>
             </div>
             <div class="menubar-right">
-              <div class="agy-menubar-pill" id="simMenuPill">
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
-                  <path id="simMenuIcon" d="M8 1L9.5 6L15 8L9.5 10L8 15L6.5 10L1 8L6.5 6L8 1Z" fill="#10b981"/>
-                </svg>
-                <span id="simMenuPct">4%</span>
-              </div>
-              <span style="color: var(--text-dim);">⌘⇧U</span>
+              <span class="tray">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path id="trayIcon" d="M8 1.5L9.4 6.1L14 7.5L9.4 8.9L8 13.5L6.6 8.9L2 7.5L6.6 6.1L8 1.5Z" fill="#16a34a"/></svg>
+                <span id="trayPct">4%</span>
+              </span>
+              <span>Tue 11:15</span>
             </div>
           </div>
 
-          <div class="agy-popover">
+          <div class="popover" role="img" aria-label="Preview of the AntigravityUsageBar popover showing model quota bars">
             <div class="pop-head">
-              <div>
-                <div class="pop-title">
-                  Antigravity Usage
-                  <span class="pop-badge">Google AI Pro</span>
-                </div>
-                <div class="pop-sub">PID 48561 · 127.0.0.1:51889</div>
-              </div>
-              <div class="pop-live">
-                <span class="pulse-dot"></span> LIVE RPC
-              </div>
+              <span class="pop-title">Antigravity Usage</span>
+              <span class="tag">Google AI Pro</span>
             </div>
 
-            <div class="quota-list">
-              <!-- Row 1 -->
-              <div>
-                <div class="quota-row-top">
-                  <span class="model-name">Gemini 4 Argon <span class="active-chip">ACTIVE</span></span>
-                  <span class="reset-clock">Resets in 6d 16h</span>
-                </div>
-                <div class="bar-track">
-                  <div class="bar-fill" id="qBar1" style="width: 8%; background: var(--emerald);"></div>
-                  <div class="pace-tick" style="left: 18%;" title="Pace Marker"></div>
-                </div>
-                <div class="quota-row-bottom">
-                  <span id="qUsed1">4% used</span>
-                  <span id="qRem1">96% remaining</span>
-                </div>
+            <div class="row">
+              <div class="row-top">
+                <span class="name">Gemini 4 Argon<span class="active">ACTIVE</span></span>
+                <span class="reset">Resets in 6d 16h</span>
               </div>
-
-              <!-- Row 2 -->
-              <div>
-                <div class="quota-row-top">
-                  <span class="model-name">Gemini 3.8 Flash</span>
-                  <span class="reset-clock">Resets in 4h 50m</span>
-                </div>
-                <div class="bar-track">
-                  <div class="bar-fill" id="qBar2" style="width: 12%; background: var(--emerald);"></div>
-                  <div class="pace-tick" style="left: 25%;"></div>
-                </div>
-                <div class="quota-row-bottom">
-                  <span id="qUsed2">12% used</span>
-                  <span id="qRem2">88% remaining</span>
-                </div>
-              </div>
-
-              <!-- Row 3 -->
-              <div>
-                <div class="quota-row-top">
-                  <span class="model-name">Claude Sonnet 5.5</span>
-                  <span class="reset-clock">Resets in 4h 55m</span>
-                </div>
-                <div class="bar-track">
-                  <div class="bar-fill" id="qBar3" style="width: 28%; background: var(--emerald);"></div>
-                  <div class="pace-tick" style="left: 35%;"></div>
-                </div>
-                <div class="quota-row-bottom">
-                  <span id="qUsed3">28% used</span>
-                  <span id="qRem3">72% remaining</span>
-                </div>
-              </div>
-
-              <!-- Row 4 -->
-              <div>
-                <div class="quota-row-top">
-                  <span class="model-name">Claude Opus 5.5</span>
-                  <span class="reset-clock">Resets in 4h 55m</span>
-                </div>
-                <div class="bar-track">
-                  <div class="bar-fill" id="qBar4" style="width: 64%; background: var(--emerald);"></div>
-                  <div class="pace-tick" style="left: 50%;"></div>
-                </div>
-                <div class="quota-row-bottom">
-                  <span id="qUsed4">64% used</span>
-                  <span id="qRem4">36% remaining</span>
-                </div>
-              </div>
+              <div class="track"><div class="fill" id="f1" style="width:4%"></div></div>
+              <div class="row-bottom" id="t1">4% used</div>
             </div>
 
-            <div class="tok-matrix">
-              <div class="tok-cell">
-                <div class="tok-cell-label">TODAY TELEMETRY</div>
-                <div class="tok-cell-val" id="simTodayTok">42.8K tok</div>
-                <div class="tok-cell-break">In 40.6K · Out 2.2K · Cache 164K</div>
+            <div class="row">
+              <div class="row-top">
+                <span class="name">Gemini 3.8 Flash</span>
+                <span class="reset">Resets in 4h 50m</span>
               </div>
-              <div class="tok-cell">
-                <div class="tok-cell-label">ALL-TIME (173 SESSIONS)</div>
-                <div class="tok-cell-val" id="simTotalTok">1.31M tok</div>
-                <div class="tok-cell-break">In 1.2M · Out 109K · Cache 11.2M</div>
-              </div>
+              <div class="track"><div class="fill" id="f2" style="width:11%"></div></div>
+              <div class="row-bottom" id="t2">11% used</div>
             </div>
 
-            <div class="pop-foot">
-              <span>Prompt: 500 · Flow: 100</span>
-              <span style="color: var(--cyan);">PACE TICK: ON</span>
+            <div class="row">
+              <div class="row-top">
+                <span class="name">Claude Sonnet 5.5</span>
+                <span class="reset">Resets in 4h 55m</span>
+              </div>
+              <div class="track"><div class="fill" id="f3" style="width:28%"></div></div>
+              <div class="row-bottom" id="t3">28% used</div>
             </div>
+
+            <div class="row">
+              <div class="row-top">
+                <span class="name">Claude Opus 5.5</span>
+                <span class="reset">Resets in 4h 55m</span>
+              </div>
+              <div class="track"><div class="fill" id="f4" style="width:46%"></div></div>
+              <div class="row-bottom" id="t4">46% used</div>
+            </div>
+
+            <div class="tokens">
+              <div>
+                <div class="tok-label">Tokens today</div>
+                <div class="tok-val" id="tokToday">42.8K</div>
+              </div>
+              <div>
+                <div class="tok-label">All time</div>
+                <div class="tok-val" id="tokAll">1.31M</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage-controls" role="group" aria-label="Preview usage level">
+            <button class="seg" aria-pressed="true" data-s="light">Light use</button>
+            <button class="seg" aria-pressed="false" data-s="busy">Busy day</button>
+            <button class="seg" aria-pressed="false" data-s="limit">Near limit</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 01. Architecture Pipeline -->
-    <div class="sec-head" id="pipeline">
-      <div>
-        <div class="sec-tag">// 01. ZERO-CONFIG PIPELINE</div>
-        <h2 class="sec-title">HOW IT READS QUOTAS WITHOUT COOKIES</h2>
-      </div>
-      <div style="font-family: var(--mono); font-size: 12px; color: var(--text-dim);">
-        100% LOCALHOST LOOPBACK · ZERO EXTERNAL REQUESTS
-      </div>
-    </div>
-
-    <section class="pipeline-grid">
-      <div class="pipe-step">
-        <span class="pipe-num">STEP 01 // PROCESS SCAN</span>
-        <h3>Auto-Discover Daemon</h3>
-        <p>
-          Scans active macOS processes for Antigravity's background
-          <code>language_server</code> and extracts the dynamic
-          <code>--csrf_token</code> and listening TCP ports via <code>lsof</code>.
-        </p>
-        <div class="pipe-code">ps -ax | grep language_server --csrf_token</div>
-      </div>
-
-      <div class="pipe-step">
-        <span class="pipe-num">STEP 02 // LOCALHOST RPC</span>
-        <h3>Query GetUserStatus</h3>
-        <p>
-          Executes a local Connect-RPC POST over <code>127.0.0.1</code> to fetch real-time
-          <code>remainingFraction</code>, <code>resetTime</code>, and plan credit balances for every model.
-        </p>
-        <div class="pipe-code">POST /exa.language_server_pb.LanguageServerService/GetUserStatus</div>
-      </div>
-
-      <div class="pipe-step">
-        <span class="pipe-num">STEP 03 // TRANSCRIPT PARSER</span>
-        <h3>Aggregate Token Logs</h3>
-        <p>
-          Parses local JSONL logs inside <code>~/.gemini/antigravity/brain</code> to compute exact
-          Today and All-Time input, output, and cache-read token counts.
-        </p>
-        <div class="pipe-code">~/.gemini/antigravity/brain/*/transcript.jsonl</div>
-      </div>
-    </section>
-
-    <!-- 02. Technical Specs Bento -->
-    <div class="sec-head" id="specs">
-      <div>
-        <div class="sec-tag">// 02. INSTRUMENTATION SPECS</div>
-        <h2 class="sec-title">ENGINEERED FOR AGENTIC WORKFLOWS</h2>
-      </div>
-    </div>
-
-    <section class="bento-grid">
-      <div class="bento-card span-7">
-        <div>
-          <div class="bento-meta">MULTI-MODEL QUOTA ENGINE</div>
-          <h3>Tracks Every Cascade Model Pool</h3>
-          <p>
-            Antigravity allocates separate quota buckets across model families. Toggle between
-            <strong>Grouped Family View</strong> or <strong>All Tiers (Low / Medium / High)</strong>
-            and automatically highlight your currently selected model from <code>antigravity_state.pbtxt</code>.
-          </p>
+    <!-- Features -->
+    <section class="block" id="features">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">Features</p>
+          <h2>Everything you need. Nothing you don't.</h2>
         </div>
-        <div class="model-matrix">
-          <div class="model-chip"><span>Gemini 4 Argon (L/M/H)</span><span>7-DAY POOL</span></div>
-          <div class="model-chip"><span>Gemini 3.8 Flash (L/M/H)</span><span>5-HOUR POOL</span></div>
-          <div class="model-chip"><span>Claude Sonnet 5.5 (L/M/H)</span><span>5-HOUR POOL</span></div>
-          <div class="model-chip"><span>Claude Opus 5.5 (L/M/H)</span><span>5-HOUR POOL</span></div>
-        </div>
-      </div>
 
-      <div class="bento-card span-5">
-        <div>
-          <div class="bento-meta">BURNRATE TELEMETRY</div>
-          <h3>Window Pace Markers</h3>
-          <p>
-            Enable the Pace Marker tick on any progress bar to compare your actual quota consumption against
-            linear elapsed time in the 5-hour or 7-day reset window. Know immediately if you are burning quota too fast.
-          </p>
-        </div>
-        <div class="pipe-code" style="margin-top: 20px;">
-          On pace: 42% by now · 2d 22h into 7d window
-        </div>
-      </div>
-
-      <div class="bento-card span-4">
-        <div>
-          <div class="bento-meta">GLOBAL HOTKEY</div>
-          <h3>⌘⇧U Instant Toggle</h3>
-          <p>
-            Summon or dismiss the telemetry popover from any IDE, terminal, or fullscreen space using
-            <code>Cmd+Shift+U</code>—designed to run alongside ClaudeUsageBar (<code>⌘U</code>) with zero shortcut conflict.
-          </p>
-        </div>
-      </div>
-
-      <div class="bento-card span-4">
-        <div>
-          <div class="bento-meta">THRESHOLD ALERTS</div>
-          <h3>25 / 50 / 75 / 90%</h3>
-          <p>
-            Native macOS notifications fire automatically as your active model crosses critical quota thresholds,
-            and reset cleanly when your window renews.
-          </p>
-        </div>
-      </div>
-
-      <div class="bento-card span-4">
-        <div>
-          <div class="bento-meta">NATIVE SWIFT + APPKIT</div>
-          <h3>Universal Binary</h3>
-          <p>
-            Compiled natively for Apple Silicon (<code>arm64</code>) and Intel (<code>x86_64</code>).
-            No Electron, no WebView bloat, and zero dock clutter (<code>LSUIElement</code>).
-          </p>
+        <div class="features">
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <h3>Zero setup</h3>
+            <p>Finds the running Antigravity <code>language_server</code> on its own. No cookies or tokens to paste.</p>
+          </div>
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="2" y2="20"/></svg>
+            <h3>Every model</h3>
+            <p>Gemini, Claude, and GPT-OSS quotas with live reset countdowns. Your active model is highlighted.</p>
+          </div>
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+            <h3>Token usage</h3>
+            <p>Today and all-time input, output, and cache tokens — read from your local transcripts.</p>
+          </div>
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <h3>Gentle alerts</h3>
+            <p>A notification at 25, 50, 75, and 90 percent. Nothing more.</p>
+          </div>
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h2M11 9h2M15 9h2M8 13h8"/></svg>
+            <h3>One shortcut</h3>
+            <p>Press <code>⌘⇧U</code> from anywhere to open or close the popover.</p>
+          </div>
+          <div class="feature reveal">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h3>Private by design</h3>
+            <p>Talks only to <code>127.0.0.1</code>. No analytics, no servers, no accounts.</p>
+          </div>
         </div>
       </div>
     </section>
 
-      <!-- Lineage / Open Source Credit -->
-    <section class="lineage-panel" id="lineage">
-      <div class="lineage-text">
-        <div class="sec-tag">// 03. OPEN SOURCE LINEAGE</div>
-        <h3>Inspired by Artzainnn/ClaudeUsageBar</h3>
-        <p>
-          Built in the spirit of <a href="https://github.com/Artzainnn/ClaudeUsageBar" target="_blank">Artzainnn/ClaudeUsageBar</a>,
-          re-engineered from the ground up for Google Antigravity's local language server RPC and transcript telemetry.
-        </p>
-      </div>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <a href="https://github.com/Artzainnn/ClaudeUsageBar" target="_blank" class="btn-ghost">
-          VIEW CLAUDEUSAGEBAR ↗
-        </a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank" class="btn-primary">
-          GET ANTIGRAVITYUSAGEBAR ↗
-        </a>
+    <!-- How it works -->
+    <section class="block" id="how">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">How it works</p>
+          <h2>Three quiet steps, every minute.</h2>
+        </div>
+
+        <div class="steps reveal">
+          <div class="step">
+            <div class="step-num">01</div>
+            <h3>Discover</h3>
+            <p>Locates the local Antigravity server process, its port, and session token.</p>
+          </div>
+          <div class="step">
+            <div class="step-num">02</div>
+            <h3>Ask</h3>
+            <p>Requests your quota status over localhost — the same data Antigravity itself uses.</p>
+          </div>
+          <div class="step">
+            <div class="step-num">03</div>
+            <h3>Show</h3>
+            <p>Updates the menu bar with a color-coded percentage and a clean popover.</p>
+          </div>
+        </div>
       </div>
     </section>
 
-    <footer>
-      <div>
-        AGY // TELEMETRY — MIT LICENSE © 2026 KRITTERNAI
+    <!-- Install -->
+    <section class="block" id="install">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">Install</p>
+          <h2>Ready in under a minute.</h2>
+        </div>
+
+        <div class="install">
+          <div class="card reveal">
+            <h3>Download</h3>
+            <ol>
+              <li>Download the <a href="https://github.com/Kritternai/AntigravityUsageBar/releases/latest/download/AntigravityUsageBar-Installer.dmg">.dmg installer</a>.</li>
+              <li>Drag the app into Applications.</li>
+              <li>Open it. Keep Antigravity running.</li>
+            </ol>
+            <button class="cmd" data-copy="xattr -cr /Applications/AntigravityUsageBar.app" aria-label="Copy Gatekeeper fix command">
+              <span>xattr -cr /Applications/AntigravityUsageBar.app</span>
+              <span class="copy">Copy</span>
+            </button>
+          </div>
+          <div class="card reveal">
+            <h3>Build from source</h3>
+            <ol>
+              <li>Install Xcode Command Line Tools.</li>
+              <li>Clone and run the build script.</li>
+            </ol>
+            <button class="cmd" data-copy="git clone https://github.com/Kritternai/AntigravityUsageBar.git && cd AntigravityUsageBar/app && ./build.sh" aria-label="Copy build command">
+              <span>git clone https://github.com/Kritternai/AntigravityUsageBar.git &amp;&amp; cd AntigravityUsageBar/app &amp;&amp; ./build.sh</span>
+              <span class="copy">Copy</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <div>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank">GITHUB</a>
-        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank">RELEASES</a>
-        <a href="https://github.com/Artzainnn/ClaudeUsageBar" target="_blank">CLAUDEUSAGEBAR</a>
+    </section>
+
+    <!-- FAQ -->
+    <section class="block" id="faq">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <p class="kicker">FAQ</p>
+          <h2>Questions, answered.</h2>
+        </div>
+
+        <div class="faq reveal">
+          <details>
+            <summary>Do I need to paste a cookie or API key?</summary>
+            <p>No. While Antigravity is open, its local server already knows your quota. The app reads it over <code>127.0.0.1</code> automatically.</p>
+          </details>
+          <details>
+            <summary>macOS says the app can't be opened.</summary>
+            <p>The build is ad-hoc signed. Right-click the app and choose Open, or run <code>xattr -cr /Applications/AntigravityUsageBar.app</code> once.</p>
+          </details>
+          <details>
+            <summary>Why does the menu bar show “--%”?</summary>
+            <p>Antigravity isn't running, so there's nothing to read. Open Antigravity and the number appears within a minute.</p>
+          </details>
+          <details>
+            <summary>Does any data leave my Mac?</summary>
+            <p>Never. There are no external requests, analytics, or accounts. The code is open for you to check.</p>
+          </details>
+        </div>
       </div>
-    </footer>
+    </section>
+
+    <!-- Credit -->
+    <section class="credit">
+      <div class="wrap reveal">
+        <p>Inspired by <a href="https://github.com/Artzainnn/ClaudeUsageBar" target="_blank" rel="noopener">Artzainnn/ClaudeUsageBar</a> — rebuilt for Google Antigravity.</p>
+      </div>
+    </section>
   </main>
 
+  <footer>
+    <div class="wrap foot">
+      <span>© 2026 AntigravityUsageBar · MIT License</span>
+      <nav aria-label="Footer">
+        <a href="https://github.com/Kritternai/AntigravityUsageBar" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/Kritternai/AntigravityUsageBar/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+      </nav>
+    </div>
+  </footer>
+
   <script>
-    document.getElementById('copyCli').addEventListener('click', function () {
-      navigator.clipboard.writeText('git clone https://github.com/Kritternai/AntigravityUsageBar.git && cd AntigravityUsageBar/app && ./build.sh').then(() => {
-        const st = document.getElementById('copyStatus');
-        st.textContent = 'COPIED ✓';
-        st.style.background = 'var(--emerald)';
-        st.style.color = '#000';
-        setTimeout(() => {
-          st.textContent = 'COPY';
-          st.style.background = 'transparent';
-          st.style.color = 'var(--cyan)';
-        }, 1600);
+    // Header border on scroll
+    const header = document.getElementById('top');
+    addEventListener('scroll', () => header.classList.toggle('scrolled', scrollY > 8), { passive: true });
+
+    // Reveal on scroll
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // Preview scenarios
+    const css = getComputedStyle(document.documentElement);
+    const color = p => css.getPropertyValue(p < 70 ? '--green' : p < 90 ? '--amber' : '--red').trim();
+    const scenarios = {
+      light: { q: [4, 11, 28, 46], today: '42.8K', all: '1.31M' },
+      busy:  { q: [58, 41, 73, 81], today: '318K',  all: '1.59M' },
+      limit: { q: [92, 76, 95, 97], today: '890K',  all: '2.16M' }
+    };
+    function apply(key) {
+      const s = scenarios[key];
+      s.q.forEach((v, i) => {
+        const f = document.getElementById('f' + (i + 1));
+        f.style.width = v + '%';
+        f.style.backgroundColor = color(v);
+        document.getElementById('t' + (i + 1)).textContent = v + '% used';
+      });
+      document.getElementById('trayPct').textContent = s.q[0] + '%';
+      document.getElementById('trayIcon').setAttribute('fill', color(s.q[0]));
+      document.getElementById('tokToday').textContent = s.today;
+      document.getElementById('tokAll').textContent = s.all;
+    }
+    document.querySelectorAll('.seg').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.seg').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        apply(btn.dataset.s);
+      });
+    });
+    apply('light');
+
+    // Copy buttons
+    document.querySelectorAll('.cmd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+          const c = btn.querySelector('.copy');
+          c.textContent = 'Copied';
+          setTimeout(() => (c.textContent = 'Copy'), 1500);
+        });
       });
     });
 
-    const scenarios = {
-      normal:   { q: [4, 12, 28, 64], today: '42.8K tok', total: '1.31M tok' },
-      heavy:    { q: [74, 58, 81, 86], today: '318.4K tok', total: '1.59M tok' },
-      critical: { q: [92, 88, 95, 97], today: '890.1K tok', total: '2.16M tok' }
-    };
-
-    function colorFor(pct) {
-      if (pct < 70) return 'var(--emerald)';
-      if (pct < 90) return 'var(--amber)';
-      return 'var(--crimson)';
-    }
-
-    function setScenario(key, btn) {
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-
-      const s = scenarios[key];
-      s.q.forEach((val, idx) => {
-        const i = idx + 1;
-        const bar = document.getElementById('qBar' + i);
-        bar.style.width = Math.max(5, val) + '%';
-        bar.style.background = colorFor(val);
-        document.getElementById('qUsed' + i).textContent = val + '% used';
-        document.getElementById('qRem' + i).textContent = (100 - val) + '% remaining';
-      });
-
-      const primary = s.q[0];
-      const c = colorFor(primary);
-      document.getElementById('simMenuPct').textContent = primary + '%';
-      document.getElementById('simMenuPill').style.color = c;
-      document.getElementById('simMenuIcon').setAttribute('fill', c);
-      document.getElementById('simTodayTok').textContent = s.today;
-      document.getElementById('simTotalTok').textContent = s.total;
-    }
-
+    // GitHub stars
     fetch('https://api.github.com/repos/Kritternai/AntigravityUsageBar')
       .then(r => r.json())
-      .then(d => {
-        if (typeof d.stargazers_count === 'number') {
-          document.getElementById('ghStars').textContent = '[★ ' + d.stargazers_count + ']';
-        }
-      })
+      .then(d => { if (typeof d.stargazers_count === 'number') document.getElementById('stars').textContent = '· ' + d.stargazers_count; })
       .catch(() => {});
   </script>
 </body>
