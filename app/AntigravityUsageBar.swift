@@ -167,6 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("✅ AntigravityUsageBar launched")
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.autosaveName = "AntigravityUsageBar"
 
         if let button = statusItem.button {
             updateStatusIcon(percentage: 0, connected: false)
@@ -346,38 +347,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let color: NSColor
         if !connected {
-            color = NSColor.tertiaryLabelColor
+            color = NSColor.systemGray
         } else if percentage < 70 {
-            color = AgyPalette.green
+            color = NSColor(red: 0.13, green: 0.77, blue: 0.37, alpha: 1.0)
         } else if percentage < 90 {
-            color = AgyPalette.amber
+            color = NSColor(red: 1.0, green: 0.75, blue: 0.0, alpha: 1.0)
         } else {
-            color = AgyPalette.red
+            color = NSColor(red: 1.0, green: 0.23, blue: 0.19, alpha: 1.0)
         }
 
         button.image = createAntigravityIcon(color: color)
         button.imagePosition = .imageLeft
-        let title = connected ? " \(percentage)%" : " --"
-        button.attributedTitle = NSAttributedString(string: title, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        ])
+        button.title = connected ? "\(percentage)%" : "--%"
+        button.appearsDisabled = false
+        button.isEnabled = true
     }
 
-    /// Four-point star, matching the website mark.
+    /// Four-point star with subtle core, matching the Antigravity mark.
     func createAntigravityIcon(color: NSColor) -> NSImage {
         let size = NSSize(width: 14, height: 14)
-        let image = NSImage(size: size, flipped: false) { _ in
-            let p = NSBezierPath()
-            p.move(to: NSPoint(x: 7, y: 0.5))
-            p.curve(to: NSPoint(x: 13.5, y: 7), controlPoint1: NSPoint(x: 7.6, y: 4.6), controlPoint2: NSPoint(x: 9.4, y: 6.4))
-            p.curve(to: NSPoint(x: 7, y: 13.5), controlPoint1: NSPoint(x: 9.4, y: 7.6), controlPoint2: NSPoint(x: 7.6, y: 9.4))
-            p.curve(to: NSPoint(x: 0.5, y: 7), controlPoint1: NSPoint(x: 6.4, y: 9.4), controlPoint2: NSPoint(x: 4.6, y: 7.6))
-            p.curve(to: NSPoint(x: 7, y: 0.5), controlPoint1: NSPoint(x: 4.6, y: 6.4), controlPoint2: NSPoint(x: 6.4, y: 4.6))
-            p.close()
-            color.setFill()
-            p.fill()
-            return true
-        }
+        let image = NSImage(size: size)
+
+        image.lockFocus()
+
+        let p = NSBezierPath()
+        p.move(to: NSPoint(x: 7, y: 1))
+        p.curve(to: NSPoint(x: 13, y: 7), controlPoint1: NSPoint(x: 8, y: 5), controlPoint2: NSPoint(x: 9, y: 6))
+        p.curve(to: NSPoint(x: 7, y: 13), controlPoint1: NSPoint(x: 9, y: 8), controlPoint2: NSPoint(x: 8, y: 9))
+        p.curve(to: NSPoint(x: 1, y: 7), controlPoint1: NSPoint(x: 6, y: 9), controlPoint2: NSPoint(x: 5, y: 8))
+        p.curve(to: NSPoint(x: 7, y: 1), controlPoint1: NSPoint(x: 5, y: 6), controlPoint2: NSPoint(x: 6, y: 5))
+        p.close()
+
+        color.setFill()
+        p.fill()
+
+        let centerDot = NSBezierPath(ovalIn: NSRect(x: 6, y: 6, width: 2, height: 2))
+        NSColor.white.withAlphaComponent(0.9).setFill()
+        centerDot.fill()
+
+        image.unlockFocus()
         image.isTemplate = false
         return image
     }
@@ -1082,6 +1090,13 @@ class UsageManager: ObservableObject {
     }
 
     func updateStatusBar() {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateStatusBar()
+            }
+            return
+        }
+
         let items = groupModelsByFamily ? modelGroups : allModels
         let pct: Int
 
