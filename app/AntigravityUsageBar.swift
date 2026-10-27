@@ -3,17 +3,9 @@ import AppKit
 import Carbon
 import ServiceManagement
 
-// Secondary text: system gray in dark; darker in light, where the vibrant
-// ~50% gray over the white popover backing reads as washed out.
-extension Color {
-    static let secondaryText = Color(nsColor: NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? .secondaryLabelColor
-            : NSColor(white: 0.24, alpha: 1.0)
-    })
-}
-
-/// Compact choice control with the accent-blue selection of the app's prominent buttons.
+/// Segmented control in the site's style: a soft track with a raised chip for
+/// the selection. Native segmented pickers only tint while their window is key,
+/// which the popover never is.
 struct ChoicePills: View {
     @Binding var selection: String
     let options: [(label: String, tag: String)]
@@ -22,23 +14,27 @@ struct ChoicePills: View {
         HStack(spacing: 2) {
             ForEach(options, id: \.tag) { option in
                 let selected = selection == option.tag
-                Button(action: { selection = option.tag }) {
+                Button(action: {
+                    withAnimation(.easeOut(duration: 0.15)) { selection = option.tag }
+                }) {
                     Text(option.label)
-                        .font(.caption)
-                        .fontWeight(selected ? .semibold : .regular)
-                        .foregroundColor(selected ? .white : Color.secondaryText)
-                        .frame(minWidth: 58)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(selected ? Color.accentColor : Color.clear))
+                        .font(.system(size: 11.5, weight: selected ? .semibold : .regular))
+                        .foregroundColor(selected ? .agyText : .agyText2)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(selected ? Color.agySurface : Color.clear)
+                                .shadow(color: .black.opacity(selected ? 0.08 : 0), radius: 1, y: 1)
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(2)
-        .background(RoundedRectangle(cornerRadius: 7).fill(Color.secondary.opacity(0.15)))
-        .fixedSize()
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.agyTrack))
     }
 }
 
@@ -58,13 +54,14 @@ struct UsageBar: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.12))
+                Capsule().fill(Color.agyTrack)
                 Capsule()
                     .fill(color)
                     .frame(width: max(0, min(1, value)) * geo.size.width)
+                    .animation(.easeOut(duration: 0.4), value: value)
                 if let pace = pace {
                     Rectangle()
-                        .fill(Color.primary.opacity(0.7))
+                        .fill(Color.agyText.opacity(0.55))
                         .frame(width: tickWidth)
                         .offset(x: max(0, min(1, pace.expected)) * geo.size.width - tickWidth / 2)
                 }
@@ -77,33 +74,24 @@ struct UsageBar: View {
                 }
             }
         }
-        .frame(height: 6)
+        .frame(height: 5)
         .onHover { isHovering = $0 }
     }
 }
 
 struct PaceTooltip: View {
     let text: String
-
     var body: some View {
         Text(text)
-            .font(.caption2)
-            .foregroundColor(Color.primary)
-            .fixedSize()
+            .font(.system(size: 10, weight: .medium))
+            .foregroundColor(.agyText)
             .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.28), radius: 3, y: 1)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
-            .allowsHitTesting(false)
+            .padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 5).fill(Color.agySurface).shadow(color: .black.opacity(0.12), radius: 2, y: 1))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.agyLine, lineWidth: 1))
     }
 }
+
 
 // MARK: - Data Models
 
@@ -358,52 +346,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let color: NSColor
         if !connected {
-            color = NSColor.systemGray
+            color = NSColor.tertiaryLabelColor
         } else if percentage < 70 {
-            color = NSColor(red: 0.13, green: 0.77, blue: 0.37, alpha: 1.0) // Green
+            color = AgyPalette.green
         } else if percentage < 90 {
-            color = NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1.0) // Yellow
+            color = AgyPalette.amber
         } else {
-            color = NSColor(red: 1.0, green: 0.23, blue: 0.19, alpha: 1.0) // Red
+            color = AgyPalette.red
         }
 
-        let icon = createAntigravityIcon(color: color)
-        button.image = icon
-        button.title = connected ? " \(percentage)%" : " --%"
+        button.image = createAntigravityIcon(color: color)
+        button.imagePosition = .imageLeft
+        let title = connected ? " \(percentage)%" : " --"
+        button.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        ])
     }
 
+    /// Four-point star, matching the website mark.
     func createAntigravityIcon(color: NSColor) -> NSImage {
-        let size = NSSize(width: 16, height: 16)
-        let image = NSImage(size: size)
-
-        image.lockFocus()
-
-        // Stylized Antigravity diamond/sparkle rocket icon
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: 8, y: 1))
-        path.line(to: NSPoint(x: 9.5, y: 6))
-        path.line(to: NSPoint(x: 15, y: 8))
-        path.line(to: NSPoint(x: 9.5, y: 10))
-        path.line(to: NSPoint(x: 8, y: 15))
-        path.line(to: NSPoint(x: 6.5, y: 10))
-        path.line(to: NSPoint(x: 1, y: 8))
-        path.line(to: NSPoint(x: 6.5, y: 6))
-        path.close()
-
-        color.setFill()
-        path.fill()
-
-        // Small orbital dot
-        let dot = NSBezierPath(ovalIn: NSRect(x: 11.5, y: 11.5, width: 3, height: 3))
-        color.setFill()
-        dot.fill()
-
-        image.unlockFocus()
+        let size = NSSize(width: 14, height: 14)
+        let image = NSImage(size: size, flipped: false) { _ in
+            let p = NSBezierPath()
+            p.move(to: NSPoint(x: 7, y: 0.5))
+            p.curve(to: NSPoint(x: 13.5, y: 7), controlPoint1: NSPoint(x: 7.6, y: 4.6), controlPoint2: NSPoint(x: 9.4, y: 6.4))
+            p.curve(to: NSPoint(x: 7, y: 13.5), controlPoint1: NSPoint(x: 9.4, y: 7.6), controlPoint2: NSPoint(x: 7.6, y: 9.4))
+            p.curve(to: NSPoint(x: 0.5, y: 7), controlPoint1: NSPoint(x: 6.4, y: 9.4), controlPoint2: NSPoint(x: 4.6, y: 7.6))
+            p.curve(to: NSPoint(x: 7, y: 0.5), controlPoint1: NSPoint(x: 4.6, y: 6.4), controlPoint2: NSPoint(x: 6.4, y: 4.6))
+            p.close()
+            color.setFill()
+            p.fill()
+            return true
+        }
         image.isTemplate = false
-
         return image
     }
 }
+
+/// Status-colour values shared by the menu bar icon (AppKit) and the popover.
+enum AgyPalette {
+    static let green = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(srgbRed: 0.133, green: 0.773, blue: 0.369, alpha: 1)
+        : NSColor(srgbRed: 0.086, green: 0.639, blue: 0.290, alpha: 1) }
+    static let amber = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(srgbRed: 0.961, green: 0.620, blue: 0.043, alpha: 1)
+        : NSColor(srgbRed: 0.851, green: 0.467, blue: 0.024, alpha: 1) }
+    static let red = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        ? NSColor(srgbRed: 0.937, green: 0.267, blue: 0.267, alpha: 1)
+        : NSColor(srgbRed: 0.863, green: 0.149, blue: 0.149, alpha: 1) }
+}
+
 
 // Allow self-signed localhost TLS from language_server if needed
 class LocalServerSessionDelegate: NSObject, URLSessionDelegate {
@@ -423,11 +415,259 @@ class LocalServerSessionDelegate: NSObject, URLSessionDelegate {
 @main
 struct Main {
     static func main() {
+        if CommandLine.arguments.contains("--snapshot") {
+            SnapshotGenerator.run()
+            return
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
         app.run()
+    }
+}
+
+// MARK: - Snapshot Generator for Documentation & Assets
+
+struct SnapshotGenerator {
+    static func run() {
+        _ = NSApplication.shared
+
+        let um = UsageManager(statusItem: nil, delegate: nil)
+        um.userName = "Developer"
+        um.userEmail = "dev@antigravity.internal"
+        um.tierName = "Antigravity Pro"
+        um.planName = "Internal Early Access"
+        um.serverConnected = true
+        um.detectedPort = 58214
+        um.detectedPid = 38419
+        um.primaryPercentage = 34
+        um.activeModelLabel = "Gemini 2.5 Pro"
+
+        let m1 = ModelQuotaItem(
+            id: "gemini-2.5-pro",
+            label: "Gemini 2.5 Pro",
+            family: "Gemini 2.5 Pro",
+            usedFraction: 0.34,
+            remainingFraction: 0.66,
+            resetTime: Date().addingTimeInterval(3.5 * 3600),
+            isActiveModel: true,
+            tagTitle: "Active",
+            windowSeconds: 18000
+        )
+        let m2 = ModelQuotaItem(
+            id: "claude-3.7-sonnet",
+            label: "Claude 3.7 Sonnet (Thinking)",
+            family: "Claude 3.7 Sonnet",
+            usedFraction: 0.68,
+            remainingFraction: 0.32,
+            resetTime: Date().addingTimeInterval(1.2 * 3600),
+            isActiveModel: false,
+            tagTitle: "Thinking",
+            windowSeconds: 18000
+        )
+        let m3 = ModelQuotaItem(
+            id: "gemini-2.5-flash",
+            label: "Gemini 2.5 Flash",
+            family: "Gemini 2.5 Flash",
+            usedFraction: 0.12,
+            remainingFraction: 0.88,
+            resetTime: Date().addingTimeInterval(4.5 * 3600),
+            isActiveModel: false,
+            tagTitle: nil,
+            windowSeconds: 18000
+        )
+
+        um.modelGroups = [m1, m2, m3]
+        um.allModels = [m1, m2, m3]
+        um.localStats = LocalTokenStats(
+            sessionCount: 28,
+            stepCount: 142,
+            todayInputTokens: 384200,
+            todayCacheTokens: 295100,
+            todayOutputTokens: 68400,
+            totalInputTokens: 1120000,
+            totalCacheTokens: 940000,
+            totalOutputTokens: 362000
+        )
+
+        let fm = FileManager.default
+        let currentDir = fm.currentDirectoryPath
+        // Detect repo root (parent of app/ or current if at root)
+        let rootDir: URL
+        if currentDir.hasSuffix("/app") {
+            rootDir = URL(fileURLWithPath: currentDir).deletingLastPathComponent()
+        } else {
+            rootDir = URL(fileURLWithPath: currentDir)
+        }
+
+        let assetsDir = rootDir.appendingPathComponent("assets")
+        let docsAssetsDir = rootDir.appendingPathComponent("docs/assets")
+        try? fm.createDirectory(at: assetsDir, withIntermediateDirectories: true)
+        try? fm.createDirectory(at: docsAssetsDir, withIntermediateDirectories: true)
+
+        // 1. Standalone cards
+        saveView(
+            SnapshotCard(isDark: false) { UsageView(usageManager: um, initialPage: .main, defaultHeight: 480) },
+            to: assetsDir.appendingPathComponent("screenshot-dashboard.png")
+        )
+        saveView(
+            SnapshotCard(isDark: true) { UsageView(usageManager: um, initialPage: .main, defaultHeight: 480) },
+            to: assetsDir.appendingPathComponent("screenshot-dark.png")
+        )
+        saveView(
+            SnapshotCard(isDark: false) { UsageView(usageManager: um, initialPage: .settings, defaultHeight: 520) },
+            to: assetsDir.appendingPathComponent("screenshot-settings.png")
+        )
+
+        // 2. Hero showcase (macOS menu bar context)
+        saveView(
+            SnapshotShowcase(isDark: false, content: UsageView(usageManager: um, initialPage: .main, defaultHeight: 480)),
+            to: assetsDir.appendingPathComponent("preview-hero.png")
+        )
+        saveView(
+            SnapshotShowcase(isDark: true, content: UsageView(usageManager: um, initialPage: .main, defaultHeight: 480)),
+            to: assetsDir.appendingPathComponent("preview-hero-dark.png")
+        )
+
+        // Sync to docs/assets
+        for name in ["screenshot-dashboard.png", "screenshot-dark.png", "screenshot-settings.png", "preview-hero.png", "preview-hero-dark.png"] {
+            let src = assetsDir.appendingPathComponent(name)
+            let dst = docsAssetsDir.appendingPathComponent(name)
+            try? fm.removeItem(at: dst)
+            try? fm.copyItem(at: src, to: dst)
+        }
+
+        print("✅ Snapshots generated in \(assetsDir.path) and \(docsAssetsDir.path)")
+        exit(0)
+    }
+
+    static func saveView<V: View>(_ view: V, to url: URL) {
+        let hostingView = NSHostingView(rootView: view)
+        let size = hostingView.fittingSize
+        hostingView.frame = NSRect(origin: .zero, size: size)
+        hostingView.layoutSubtreeIfNeeded()
+
+        guard let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else { return }
+        hostingView.cacheDisplay(in: hostingView.bounds, to: rep)
+        if let data = rep.representation(using: .png, properties: [:]) {
+            try? data.write(to: url)
+            print("Wrote \(url.lastPathComponent) (\(data.count) bytes)")
+        }
+    }
+}
+
+struct SnapshotCard<Content: View>: View {
+    let isDark: Bool
+    let content: Content
+
+    init(isDark: Bool, @ViewBuilder content: () -> Content) {
+        self.isDark = isDark
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .preferredColorScheme(isDark ? .dark : .light)
+            .background(Color.agySurface)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.agyLine, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(isDark ? 0.45 : 0.12), radius: 18, x: 0, y: 8)
+            .padding(20)
+            .background(Color.clear)
+    }
+}
+
+struct SnapshotShowcase: View {
+    let isDark: Bool
+    let content: UsageView
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Simulated macOS Menu Bar
+            HStack(spacing: 12) {
+                HStack(spacing: 14) {
+                    Image(systemName: "applelogo")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Antigravity")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("File")
+                        .font(.system(size: 13))
+                    Text("Edit")
+                        .font(.system(size: 13))
+                    Text("View")
+                        .font(.system(size: 13))
+                    Text("Window")
+                        .font(.system(size: 13))
+                    Text("Help")
+                        .font(.system(size: 13))
+                }
+                .foregroundColor(isDark ? .white.opacity(0.85) : .black.opacity(0.85))
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.agyGreen)
+                        Text("34%")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(isDark ? .white : .black)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08))
+                    )
+
+                    Image(systemName: "wifi")
+                        .font(.system(size: 12))
+                    Image(systemName: "battery.100")
+                        .font(.system(size: 13))
+                    Text("Mon 11:24")
+                        .font(.system(size: 12))
+                }
+                .foregroundColor(isDark ? .white.opacity(0.85) : .black.opacity(0.85))
+            }
+            .padding(.horizontal, 18)
+            .frame(height: 30)
+            .background(isDark ? Color(white: 0.12).opacity(0.96) : Color(white: 0.96).opacity(0.96))
+            .overlay(
+                Rectangle()
+                    .fill(isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                    .frame(height: 1),
+                alignment: .bottom
+            )
+
+            ZStack(alignment: .topTrailing) {
+                LinearGradient(
+                    colors: isDark
+                        ? [Color(white: 0.08), Color(white: 0.04)]
+                        : [Color(white: 0.94), Color(white: 0.98)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                content
+                    .background(Color.agySurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.agyLine, lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(isDark ? 0.55 : 0.16), radius: 24, x: 0, y: 12)
+                    .padding(.top, 10)
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 24)
+            }
+        }
+        .frame(width: 640)
+        .preferredColorScheme(isDark ? .dark : .light)
     }
 }
 
@@ -1002,7 +1242,31 @@ class UsageManager: ObservableObject {
     }
 }
 
+
 // MARK: - SwiftUI Views
+
+// Palette mirrored from the website (docs/index.html): neutral grays, one blue
+// accent, and green / amber / red reserved for quota state.
+extension Color {
+    static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        })
+    }
+
+    static let agySurface = adaptive(light: .white, dark: NSColor(white: 0.08, alpha: 1))
+    static let agySoft    = adaptive(light: NSColor(white: 0.965, alpha: 1), dark: NSColor(white: 0.11, alpha: 1))
+    static let agyTrack   = adaptive(light: NSColor(white: 0.925, alpha: 1), dark: NSColor(white: 0.16, alpha: 1))
+    static let agyLine    = adaptive(light: NSColor(white: 0.90, alpha: 1), dark: NSColor(white: 0.15, alpha: 1))
+    static let agyText    = adaptive(light: NSColor(white: 0.04, alpha: 1), dark: NSColor(white: 0.98, alpha: 1))
+    static let agyText2   = adaptive(light: NSColor(white: 0.32, alpha: 1), dark: NSColor(white: 0.64, alpha: 1))
+    static let agyText3   = adaptive(light: NSColor(white: 0.58, alpha: 1), dark: NSColor(white: 0.45, alpha: 1))
+    static let agyAccent  = adaptive(light: NSColor(srgbRed: 0.145, green: 0.388, blue: 0.922, alpha: 1),
+                                     dark: NSColor(srgbRed: 0.376, green: 0.647, blue: 0.980, alpha: 1))
+    static let agyGreen   = Color(nsColor: AgyPalette.green)
+    static let agyAmber   = Color(nsColor: AgyPalette.amber)
+    static let agyRed     = Color(nsColor: AgyPalette.red)
+}
 
 private struct ContentHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -1011,497 +1275,564 @@ private struct ContentHeightKey: PreferenceKey {
     }
 }
 
+/// Small borderless icon button with a soft hover background.
+struct IconButton: View {
+    let systemName: String
+    var label: String
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(hover ? .agyText : .agyText2)
+                .frame(width: 26, height: 26)
+                .background(RoundedRectangle(cornerRadius: 7).fill(hover ? Color.agySoft : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .onHover { hover = $0 }
+    }
+}
+
+/// Capsule button: dark filled (primary) or outlined (secondary), like the site.
+struct PillButton: View {
+    let title: String
+    var primary: Bool = true
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(primary ? .agySurface : .agyText)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(primary ? Color.agyText.opacity(hover ? 0.85 : 1) : Color.clear)
+                )
+                .overlay(Capsule().stroke(primary ? Color.clear : (hover ? Color.agyText3 : Color.agyLine), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
+/// Plain text link-style button.
+struct TextButton: View {
+    let title: String
+    var color: Color = .agyText3
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11.5))
+                .foregroundColor(hover ? .agyText : color)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
+/// Monochrome switch. Native switches render gray in the never-key popover.
+struct MiniSwitch: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button(action: { withAnimation(.easeOut(duration: 0.15)) { isOn.toggle() } }) {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(isOn ? Color.agyText : Color.agyTrack)
+                    .frame(width: 28, height: 16)
+                Circle()
+                    .fill(isOn ? Color.agySurface : Color.white)
+                    .shadow(color: .black.opacity(0.15), radius: 1, y: 0.5)
+                    .frame(width: 12, height: 12)
+                    .padding(2)
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+}
+
 struct UsageView: View {
     @ObservedObject var usageManager: UsageManager
-    @State private var showingSettings: Bool = false
-    @State private var showingManualOverride: Bool = false
-    @State private var measuredHeight: CGFloat = 340
-    @Environment(\.colorScheme) private var colorScheme
+
+    enum Page { case main, settings }
+
+    @State private var page: Page = .main
+    @State private var showAdvanced = false
+    @State private var testSent = false
+    @State private var measuredHeight: CGFloat = 360
     @AppStorage("agy_appearance_mode") private var appearanceMode: String = "system"
     @AppStorage("agy_reset_time_style") private var resetTimeStyle: String = "countdown"
     @State private var now = Date()
     private let minuteTicker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
-    private let maxPopupHeight: CGFloat = 620
+    private let popupWidth: CGFloat = 340
+    private let maxPopupHeight: CGFloat = 600
+
+    init(usageManager: UsageManager, initialPage: Page = .main, defaultHeight: CGFloat = 360) {
+        self.usageManager = usageManager
+        self._page = State(initialValue: initialPage)
+        self._measuredHeight = State(initialValue: defaultHeight)
+    }
 
     var displayedModels: [ModelQuotaItem] {
         usageManager.groupModelsByFamily ? usageManager.modelGroups : usageManager.allModels
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                content
-                    .padding()
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
-                        }
-                    )
+        ScrollView(showsIndicators: false) {
+            Group {
+                switch page {
+                case .main: mainPage
+                case .settings: settingsPage
+                }
             }
-            .frame(width: 370, height: min(max(measuredHeight, 140), maxPopupHeight))
+            .padding(20)
+            .frame(width: popupWidth, alignment: .topLeading)
             .background(
-                colorScheme == .dark
-                    ? Color(red: 0.07, green: 0.07, blue: 0.08).opacity(0.3)
-                    : Color.white.opacity(0.85)
+                GeometryReader { geo in
+                    Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
+                }
             )
-            .onPreferenceChange(ContentHeightKey.self) { value in
-                guard value > 0 else { return }
-                measuredHeight = value
-            }
-            .onReceive(minuteTicker) { now = $0 }
-            .onAppear {
-                now = Date()
-            }
-            .onChange(of: showingSettings) { isOpen in
-                if isOpen {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo("settings-anchor", anchor: .bottom)
-                        }
+        }
+        .frame(width: popupWidth, height: min(max(measuredHeight, 160), maxPopupHeight))
+        .background(Color.agySurface)
+        .onPreferenceChange(ContentHeightKey.self) { value in
+            guard value > 0 else { return }
+            measuredHeight = value
+        }
+        .onReceive(minuteTicker) { now = $0 }
+        .onAppear { now = Date() }
+    }
+
+    // MARK: Main page
+
+    var mainPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.bottom, 20)
+
+            if !usageManager.hasFetchedData {
+                emptyState
+            } else {
+                if !usageManager.serverConnected, let error = usageManager.errorMessage {
+                    notice(error)
+                        .padding(.bottom, 16)
+                }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(displayedModels) { item in
+                        quotaRow(item)
                     }
                 }
+
+                hairline.padding(.vertical, 18)
+
+                tokenStats
+
+                if usageManager.availablePromptCredits > 0 || usageManager.availableFlowCredits > 0 {
+                    Text("Prompt credits \(formatNumber(usageManager.availablePromptCredits)) · Flow \(formatNumber(usageManager.availableFlowCredits))")
+                        .font(.system(size: 11))
+                        .foregroundColor(.agyText3)
+                        .padding(.top, 14)
+                }
+            }
+
+            hairline
+                .padding(.top, 18)
+                .padding(.bottom, 12)
+
+            HStack {
+                Text(usageManager.hasFetchedData ? "Updated \(formatTime(usageManager.lastUpdated))" : "Not connected")
+                    .font(.system(size: 11))
+                    .foregroundColor(.agyText3)
+                Spacer()
+                TextButton(title: "Quit") { NSApplication.shared.terminate(nil) }
             }
         }
     }
 
-    var content: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Header
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Antigravity Usage")
-                            .font(.headline)
-                        if !usageManager.tierName.isEmpty {
-                            Text(usageManager.tierName)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.accentColor))
-                        }
-                    }
-                    if !usageManager.userEmail.isEmpty {
-                        Text("\(usageManager.userName.isEmpty ? "" : "\(usageManager.userName) · ")\(usageManager.userEmail)")
-                            .font(.caption2)
-                            .foregroundColor(Color.secondaryText)
-                    }
-                }
-                Spacer()
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(usageManager.serverConnected ? Color.green : Color.orange)
-                        .frame(width: 7, height: 7)
-                    Text(usageManager.serverConnected ? "Live" : "Offline")
-                        .font(.caption2)
-                        .foregroundColor(Color.secondaryText)
-                }
-            }
-
-            if let error = usageManager.errorMessage {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    Button("Retry Connection") {
-                        usageManager.fetchUsage()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                }
-                .padding(8)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(6)
-            }
-
-            // Model Quota Bars
-            if usageManager.hasFetchedData && !displayedModels.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Model Quotas")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color.secondaryText)
-                        Spacer()
-                        Button(action: {
-                            usageManager.groupModelsByFamily.toggle()
-                            usageManager.saveSettings()
-                            usageManager.updateStatusBar()
-                        }) {
-                            Text(usageManager.groupModelsByFamily ? "Grouped" : "All Tiers")
-                                .font(.caption2)
-                                .foregroundColor(.accentColor)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-
-                    ForEach(displayedModels) { item in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 5) {
-                                Text(item.label)
-                                    .font(.subheadline)
-                                    .fontWeight(item.isActiveModel ? .semibold : .regular)
-                                if item.isActiveModel {
-                                    Text("ACTIVE")
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundColor(.accentColor)
-                                        .padding(.horizontal, 4)
-                                        .padding(.vertical, 1)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 3)
-                                                .stroke(Color.accentColor, lineWidth: 1)
-                                        )
-                                }
-                                Spacer()
-                                if let resetTime = item.resetTime {
-                                    let isWeekly = item.windowSeconds > 6 * 3600
-                                    Text(resetText(resetTime, includeDate: isWeekly))
-                                        .help(resetHelp(resetTime, includeDate: isWeekly))
-                                        .font(.caption)
-                                        .foregroundColor(Color.secondaryText)
-                                }
-                            }
-
-                            UsageBar(
-                                value: item.usedFraction,
-                                color: colorForPercentage(item.usedFraction),
-                                pace: paceMarker(resetsAt: item.resetTime, window: item.windowSeconds)
-                            )
-
-                            HStack {
-                                Text("\(item.usedPercentageInt)% used")
-                                    .font(.caption)
-                                    .foregroundColor(Color.secondaryText)
-                                Spacer()
-                                Text("\(max(0, 100 - item.usedPercentageInt))% remaining")
-                                    .font(.caption2)
-                                    .foregroundColor(Color.secondaryText)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Plan Credits (Prompt / Flow credits)
-            if usageManager.hasFetchedData && (usageManager.availablePromptCredits > 0 || usageManager.availableFlowCredits > 0) {
-                Divider()
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Prompt Credits")
-                            .font(.caption2)
-                            .foregroundColor(Color.secondaryText)
-                        Text("\(formatNumber(usageManager.availablePromptCredits)) available")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Flow Credits")
-                            .font(.caption2)
-                            .foregroundColor(Color.secondaryText)
-                        Text("\(formatNumber(usageManager.availableFlowCredits)) available")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-
-            Divider()
-
-            // Local Token Telemetry (~/.gemini/antigravity/brain)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Local Token Telemetry")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color.secondaryText)
-                    Spacer()
-                    Text("\(usageManager.localStats.sessionCount) sessions · \(formatNumber(usageManager.localStats.stepCount)) steps")
-                        .font(.caption2)
-                        .foregroundColor(Color.secondaryText)
-                }
-
+    var header: some View {
+        HStack(alignment: .top, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
-                    tokenCard(
-                        title: "Today",
-                        inTokens: usageManager.localStats.todayInputTokens,
-                        outTokens: usageManager.localStats.todayOutputTokens,
-                        cacheTokens: usageManager.localStats.todayCacheTokens
-                    )
-                    tokenCard(
-                        title: "All-Time",
-                        inTokens: usageManager.localStats.totalInputTokens,
-                        outTokens: usageManager.localStats.totalOutputTokens,
-                        cacheTokens: usageManager.localStats.totalCacheTokens
-                    )
+                    Text("Antigravity Usage")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.agyText)
+                    if usageManager.hasFetchedData && !usageManager.tierName.isEmpty {
+                        Text(usageManager.tierName)
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundColor(.agyText2)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .overlay(Capsule().stroke(Color.agyLine, lineWidth: 1))
+                    }
+                }
+                if !usageManager.userEmail.isEmpty {
+                    Text(usageManager.userEmail)
+                        .font(.system(size: 11))
+                        .foregroundColor(.agyText3)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            Spacer(minLength: 8)
+            IconButton(systemName: "arrow.clockwise", label: "Refresh") {
+                usageManager.fetchUsage()
+            }
+            .opacity(usageManager.isLoading ? 0.4 : 1)
+            IconButton(systemName: "gearshape", label: "Settings") {
+                page = .settings
+            }
+        }
+    }
+
+    func quotaRow(_ item: ModelQuotaItem) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(item.label)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.agyText)
+                    .lineLimit(1)
+                if item.isActiveModel {
+                    Text("ACTIVE")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .kerning(0.4)
+                        .foregroundColor(.agyAccent)
+                }
+                Spacer(minLength: 8)
+                if let reset = item.resetTime {
+                    let isWeekly = item.windowSeconds > 6 * 3600
+                    Text(resetText(reset, includeDate: isWeekly))
+                        .font(.system(size: 11.5))
+                        .foregroundColor(.agyText3)
+                        .monospacedDigit()
                 }
             }
 
-            Divider()
+            UsageBar(
+                value: item.usedFraction,
+                color: colorForPercentage(item.usedFraction),
+                pace: paceMarker(resetsAt: item.resetTime, window: item.windowSeconds)
+            )
 
-            // Footer: Last updated + Refresh
-            HStack {
-                Text("Updated \(formatTime(usageManager.lastUpdated))\(usageManager.detectedPort > 0 ? " · port \(usageManager.detectedPort)" : "")")
-                    .font(.caption2)
-                    .foregroundColor(Color.secondaryText)
+            Text("\(item.usedPercentageInt)% used")
+                .font(.system(size: 11.5))
+                .foregroundColor(.agyText3)
+                .monospacedDigit()
+        }
+    }
+
+    var tokenStats: some View {
+        let s = usageManager.localStats
+        return HStack(alignment: .top, spacing: 12) {
+            stat(label: "Tokens today",
+                 value: formatCompact(s.todayTotal),
+                 detail: "In \(formatCompact(s.todayInputTokens)) · Out \(formatCompact(s.todayOutputTokens))")
+            stat(label: "All time",
+                 value: formatCompact(s.lifetimeTotal),
+                 detail: "\(s.sessionCount) sessions")
+        }
+    }
+
+    func stat(label: String, value: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.agyText3)
+            Text(value)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.agyText)
+                .monospacedDigit()
+            Text(detail)
+                .font(.system(size: 10.5))
+                .foregroundColor(.agyText3)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var emptyState: some View {
+        VStack(spacing: 10) {
+            if usageManager.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.bottom, 4)
+                Text("Connecting to Antigravity…")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.agyText)
+            } else {
+                Image(systemName: "moon.zzz")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundColor(.agyText3)
+                    .padding(.bottom, 2)
+                Text("Antigravity isn't running")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.agyText)
+                Text("Open Antigravity and your quotas\nwill appear here.")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(.agyText3)
+                    .multilineTextAlignment(.center)
+                PillButton(title: "Try again") { usageManager.fetchUsage() }
+                    .padding(.top, 6)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+    }
+
+    func notice(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 12))
+                .foregroundColor(.agyAmber)
+            Text(text)
+                .font(.system(size: 11.5))
+                .foregroundColor(.agyText2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.agySoft))
+    }
+
+    var hairline: some View {
+        Rectangle()
+            .fill(Color.agyLine)
+            .frame(height: 1)
+    }
+
+    // MARK: Settings page
+
+    var settingsPage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4) {
+                IconButton(systemName: "chevron.left", label: "Back") { page = .main }
+                Text("Settings")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.agyText)
                 Spacer()
-                Button("Refresh") {
-                    usageManager.fetchUsage()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
             }
+            .padding(.leading, -6)
+            .padding(.bottom, 18)
 
-            // Settings & Connection Override buttons
-            HStack(spacing: 14) {
-                Button(showingSettings ? "Hide Settings" : "Settings") {
-                    showingSettings.toggle()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-
-                Button(showingManualOverride ? "Hide Server Config" : "Server Config") {
-                    showingManualOverride.toggle()
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-                .foregroundColor(Color.secondaryText)
-
-                Spacer()
-
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-                .foregroundColor(.red.opacity(0.85))
-            }
-
-            if showingManualOverride {
+            sectionLabel("Menu bar")
+            card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Auto-Detection Status")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                    Text(usageManager.serverConnected
-                         ? "Connected to PID \(usageManager.detectedPid) on 127.0.0.1:\(usageManager.detectedPort)"
-                         : "Auto-discovering local Antigravity language_server process via ps/lsof.")
-                        .font(.caption2)
-                        .foregroundColor(Color.secondaryText)
-
-                    Text("Optional Manual Override (leave blank for auto):")
-                        .font(.caption2)
-                        .foregroundColor(Color.secondaryText)
-
-                    HStack(spacing: 6) {
-                        TextField("Port", text: $usageManager.manualPort)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                            .font(.caption)
-                        TextField("CSRF Token", text: $usageManager.manualCsrfToken)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.caption)
-                    }
-
-                    HStack(spacing: 8) {
-                        Button("Save & Reconnect") {
-                            usageManager.saveSettings()
-                            usageManager.fetchUsage()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-
-                        Button("Use Auto-Detect") {
-                            usageManager.manualPort = ""
-                            usageManager.manualCsrfToken = ""
-                            usageManager.saveSettings()
-                            usageManager.fetchUsage()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
+                    rowTitle("Show percentage for")
+                    ChoicePills(
+                        selection: Binding(
+                            get: { usageManager.menuBarMetric },
+                            set: { value in
+                                usageManager.menuBarMetric = value
+                                usageManager.saveSettings()
+                                usageManager.updateStatusBar()
+                            }
+                        ),
+                        options: [("Active", "active"), ("Highest", "highest"), ("Gemini", "gemini"), ("Claude", "claude")]
+                    )
                 }
-                .padding(8)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
             }
 
-            if showingSettings {
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Menu Bar Percentage")
-                            .font(.caption)
-                        ChoicePills(
-                            selection: Binding(
-                                get: { usageManager.menuBarMetric },
-                                set: { val in
-                                    usageManager.menuBarMetric = val
-                                    usageManager.saveSettings()
-                                    usageManager.updateStatusBar()
-                                }
-                            ),
-                            options: [
-                                ("Active", "active"),
-                                ("Highest", "highest"),
-                                ("Gemini", "gemini"),
-                                ("Claude", "claude")
-                            ]
-                        )
-                        Text("Choose which model quota percentage appears in the menu bar")
-                            .font(.caption2)
-                            .foregroundColor(Color.secondaryText)
-                    }
-
-                    Divider()
-
-                    Toggle(isOn: Binding(
-                        get: { usageManager.openAtLogin },
-                        set: { newValue in
-                            usageManager.openAtLogin = newValue
-                            usageManager.applyLoginItem(newValue)
-                            usageManager.saveSettings()
-                        }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Open at Login")
-                                .font(.caption)
-                            Text("Launch AntigravityUsageBar automatically when you log in")
-                                .font(.caption2)
-                                .foregroundColor(Color.secondaryText)
-                        }
-                    }
-                    .toggleStyle(.checkbox)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle(isOn: Binding(
-                            get: { usageManager.usageNotificationsEnabled },
-                            set: { newValue in
-                                usageManager.usageNotificationsEnabled = newValue
+            sectionLabel("Display")
+            card {
+                toggleRow("Group model tiers", "Combine Low, Medium and High",
+                          isOn: Binding(
+                            get: { usageManager.groupModelsByFamily },
+                            set: { value in
+                                usageManager.groupModelsByFamily = value
                                 usageManager.saveSettings()
-                            }
-                        )) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Enable Usage Notifications")
-                                    .font(.caption)
-                                Text("Get alerts at 25%, 50%, 75%, and 90% quota usage")
-                                    .font(.caption2)
-                                    .foregroundColor(Color.secondaryText)
-                            }
-                        }
-                        .toggleStyle(.checkbox)
-
-                        Button("Test Notification") {
-                            usageManager.sendTestNotification()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Reset times")
-                            .font(.caption)
-                        ChoicePills(
-                            selection: $resetTimeStyle,
-                            options: [("Time left", "countdown"), ("Date", "date")]
-                        )
-                    }
-
-                    Divider()
-
-                    Toggle(isOn: Binding(
-                        get: { usageManager.paceMarkerEnabled },
-                        set: { newValue in
-                            usageManager.paceMarkerEnabled = newValue
-                            usageManager.saveSettings()
-                        }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Show Pace Marker")
-                                .font(.caption)
-                            Text("Mark where usage should sit based on elapsed window time")
-                                .font(.caption2)
-                                .foregroundColor(Color.secondaryText)
-                        }
-                    }
-                    .toggleStyle(.checkbox)
-
-                    Divider()
-
-                    Toggle(isOn: Binding(
-                        get: { usageManager.shortcutEnabled },
-                        set: { newValue in
-                            usageManager.shortcutEnabled = newValue
-                            usageManager.saveSettings()
-                            if let appDelegate = NSApplication.shared.delegate as? AppDelegate {
-                                appDelegate.setShortcutEnabled(newValue)
-                            }
-                        }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Keyboard Shortcut (⌘⇧U)")
-                                .font(.caption)
-                            Text("Toggle popup from anywhere")
-                                .font(.caption2)
-                                .foregroundColor(Color.secondaryText)
-                        }
-                    }
-                    .toggleStyle(.switch)
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Appearance")
-                            .font(.caption)
-                        ChoicePills(
-                            selection: $appearanceMode,
-                            options: [("System", "system"), ("Dark", "dark"), ("Light", "light")]
-                        )
+                                usageManager.updateStatusBar()
+                            }))
+                cardDivider
+                toggleRow("Pace marker", "Show where usage should be by now",
+                          isOn: Binding(
+                            get: { usageManager.paceMarkerEnabled },
+                            set: { value in
+                                usageManager.paceMarkerEnabled = value
+                                usageManager.saveSettings()
+                            }))
+                cardDivider
+                VStack(alignment: .leading, spacing: 8) {
+                    rowTitle("Reset times")
+                    ChoicePills(selection: $resetTimeStyle,
+                                options: [("Time left", "countdown"), ("Date", "date")])
+                }
+                cardDivider
+                VStack(alignment: .leading, spacing: 8) {
+                    rowTitle("Appearance")
+                    ChoicePills(selection: $appearanceMode,
+                                options: [("System", "system"), ("Light", "light"), ("Dark", "dark")])
                         .onChange(of: appearanceMode) { _ in
                             (NSApplication.shared.delegate as? AppDelegate)?.applyAppearancePreference()
                         }
+                }
+            }
+
+            sectionLabel("General")
+            card {
+                toggleRow("Open at login", nil,
+                          isOn: Binding(
+                            get: { usageManager.openAtLogin },
+                            set: { value in
+                                usageManager.openAtLogin = value
+                                usageManager.applyLoginItem(value)
+                                usageManager.saveSettings()
+                            }))
+                cardDivider
+                toggleRow("Notifications", "At 25, 50, 75 and 90%",
+                          isOn: Binding(
+                            get: { usageManager.usageNotificationsEnabled },
+                            set: { value in
+                                usageManager.usageNotificationsEnabled = value
+                                usageManager.saveSettings()
+                            }))
+                cardDivider
+                toggleRow("Keyboard shortcut", "⌘⇧U toggles this popover",
+                          isOn: Binding(
+                            get: { usageManager.shortcutEnabled },
+                            set: { value in
+                                usageManager.shortcutEnabled = value
+                                usageManager.saveSettings()
+                                (NSApplication.shared.delegate as? AppDelegate)?.setShortcutEnabled(value)
+                            }))
+            }
+
+            Button(action: { withAnimation(.easeOut(duration: 0.15)) { showAdvanced.toggle() } }) {
+                HStack(spacing: 4) {
+                    Text("Advanced")
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(showAdvanced ? 90 : 0))
+                    Spacer()
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.agyText3)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+            .padding(.bottom, 8)
+
+            if showAdvanced {
+                card {
+                    VStack(alignment: .leading, spacing: 4) {
+                        rowTitle("Server")
+                        Text(usageManager.serverConnected
+                             ? "Connected · PID \(usageManager.detectedPid) · port \(usageManager.detectedPort)"
+                             : "Auto-detecting the local language_server")
+                            .font(.system(size: 11))
+                            .foregroundColor(.agyText3)
+                    }
+                    cardDivider
+                    VStack(alignment: .leading, spacing: 8) {
+                        rowTitle("Manual override")
+                        HStack(spacing: 6) {
+                            TextField("Port", text: $usageManager.manualPort)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 70)
+                            TextField("CSRF token", text: $usageManager.manualCsrfToken)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        .font(.system(size: 11.5))
+                        HStack(spacing: 8) {
+                            PillButton(title: "Save") {
+                                usageManager.saveSettings()
+                                usageManager.fetchUsage()
+                            }
+                            PillButton(title: "Auto-detect", primary: false) {
+                                usageManager.manualPort = ""
+                                usageManager.manualCsrfToken = ""
+                                usageManager.saveSettings()
+                                usageManager.fetchUsage()
+                            }
+                        }
                     }
                 }
-                .padding(8)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
-
-                Color.clear
-                    .frame(height: 1)
-                    .id("settings-anchor")
             }
+
+            HStack {
+                TextButton(title: testSent ? "Notification sent" : "Send test notification") {
+                    usageManager.sendTestNotification()
+                    testSent = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { testSent = false }
+                }
+                Spacer()
+                Text("v\(appVersion)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.agyText3)
+            }
+            .padding(.top, 16)
         }
+    }
+
+    func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundColor(.agyText3)
+            .padding(.bottom, 8)
+            .padding(.top, 2)
+    }
+
+    func rowTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12.5))
+            .foregroundColor(.agyText)
     }
 
     @ViewBuilder
-    func tokenCard(title: String, inTokens: Int, outTokens: Int, cacheTokens: Int) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title)
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(Color.secondaryText)
-            Text("\(formatCompact(inTokens + outTokens)) tok")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-            Text("In \(formatCompact(inTokens)) · Out \(formatCompact(outTokens))")
-                .font(.system(size: 9))
-                .foregroundColor(Color.secondaryText)
-            Text("Cache \(formatCompact(cacheTokens))")
-                .font(.system(size: 9))
-                .foregroundColor(Color.secondaryText)
+    func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content()
         }
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(7)
-        .background(Color.secondary.opacity(0.08))
-        .cornerRadius(6)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.agySoft))
+        .padding(.bottom, 14)
     }
 
-    func formatCompact(_ n: Int) -> String {
-        if n >= 1_000_000 {
-            return String(format: "%.1fM", Double(n) / 1_000_000.0)
-        } else if n >= 1_000 {
-            return String(format: "%.1fK", Double(n) / 1_000.0)
+    var cardDivider: some View {
+        Rectangle()
+            .fill(Color.agyLine)
+            .frame(height: 1)
+    }
+
+    func toggleRow(_ title: String, _ subtitle: String?, isOn: Binding<Bool>) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                rowTitle(title)
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundColor(.agyText3)
+                }
+            }
+            Spacer(minLength: 8)
+            MiniSwitch(isOn: isOn)
+                .accessibilityLabel(title)
         }
+    }
+
+    var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    // MARK: Formatting
+
+    func formatCompact(_ n: Int) -> String {
+        if n >= 1_000_000 { return String(format: "%.2fM", Double(n) / 1_000_000.0) }
+        if n >= 1_000 { return String(format: "%.1fK", Double(n) / 1_000.0) }
         return "\(n)"
     }
 
@@ -1525,28 +1856,13 @@ struct UsageView: View {
         return "\(m)m"
     }
 
-    private func timeLeft(_ date: Date) -> String {
-        date <= now ? "now" : "in \(Self.countdown(to: date, from: now))"
-    }
-
-    func resetText(_ date: Date, includeDate: Bool = true) -> String {
-        resetTimeStyle == "date" ? "Resets \(formatResetTime(date, includeDate: includeDate))" : "Resets \(timeLeft(date))"
-    }
-
-    func resetHelp(_ date: Date, includeDate: Bool = true) -> String {
-        resetTimeStyle == "date" ? "Resets \(timeLeft(date))" : "Resets \(formatResetTime(date, includeDate: includeDate))"
-    }
-
-    func formatResetTime(_ date: Date, includeDate: Bool = false) -> String {
-        let formatter = DateFormatter()
-        if includeDate {
-            formatter.dateFormat = "d MMM 'at' h:mm a"
-            return "on \(formatter.string(from: date))"
-        } else {
-            formatter.timeStyle = .short
-            formatter.dateStyle = .none
-            return "at \(formatter.string(from: date))"
+    func resetText(_ date: Date, includeDate: Bool) -> String {
+        if resetTimeStyle == "date" {
+            let f = DateFormatter()
+            f.dateFormat = includeDate ? "d MMM, h:mm a" : "h:mm a"
+            return "Resets \(f.string(from: date))"
         }
+        return date <= now ? "Resets now" : "Resets in \(Self.countdown(to: date, from: now))"
     }
 
     func paceMarker(resetsAt: Date?, window: TimeInterval) -> PaceMarker? {
@@ -1569,13 +1885,9 @@ struct UsageView: View {
         return "\(minutes)m"
     }
 
-    func colorForPercentage(_ percentage: Double) -> Color {
-        if percentage < 0.7 {
-            return .green
-        } else if percentage < 0.9 {
-            return .orange
-        } else {
-            return .red
-        }
+    func colorForPercentage(_ fraction: Double) -> Color {
+        if fraction < 0.7 { return .agyGreen }
+        if fraction < 0.9 { return .agyAmber }
+        return .agyRed
     }
 }
